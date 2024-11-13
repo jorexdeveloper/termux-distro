@@ -64,11 +64,11 @@ post_install_actions() {
 	local xstartup="$(
 		# Customize depending on distribution defaults
 		cat 2>>"${LOG_FILE}" <<-EOF
-			#!/usr/bin/bash
+			#!/bin/bash
 			#############################
 			##          All            ##
 			export XDG_RUNTIME_DIR=/tmp/runtime-"\${USER-root}"
-			export SHELL="\${SHELL-/usr/bin/sh}"
+			export SHELL="\${SHELL-/bin/sh}"
 
 			unset SESSION_MANAGER
 			unset DBUS_SESSION_BUS_ADDRESS
@@ -103,7 +103,7 @@ post_install_actions() {
 		echo "${xstartup}" >"${ROOTFS_DIRECTORY}/root/.vnc/xstartup"
 		chmod 744 "${ROOTFS_DIRECTORY}/root/.vnc/xstartup"
 		if [ "${DEFAULT_LOGIN}" != "root" ]; then
-			mkdir -p "${ROOTFS_DIRECTORY}/${DEFAULT_LOGIN}/.vnc"
+			mkdir -p "${ROOTFS_DIRECTORY}/home/${DEFAULT_LOGIN}/.vnc"
 			echo "${xstartup}" >"${ROOTFS_DIRECTORY}/home/${DEFAULT_LOGIN}/.vnc/xstartup"
 			chmod 744 "${ROOTFS_DIRECTORY}/home/${DEFAULT_LOGIN}/.vnc/xstartup"
 		fi
@@ -127,8 +127,8 @@ post_config_actions() {
 	if [ -f "${ROOTFS_DIRECTORY}/etc/locale.gen" ] && [ -x "${ROOTFS_DIRECTORY}/sbin/dpkg-reconfigure" ]; then
 		msg -t "Hold on while I generate the locales for you."
 		sed -i -E 's/#[[:space:]]?(en_US.UTF-8[[:space:]]+UTF-8)/\1/g' "${ROOTFS_DIRECTORY}/etc/locale.gen"
-		if distro_exec local-gen &>>"${LOG_FILE}"; then # DEBIAN_FRONTEND=noninteractive /sbin/dpkg-reconfigure locales &>"${LOG_FILE}"
-			msg -s "Yup, locales are ready!"
+		if distro_exec locale-gen &>>"${LOG_FILE}"; then # DEBIAN_FRONTEND=noninteractive /sbin/dpkg-reconfigure locales &>>"${LOG_FILE}"
+			msg -s "Done, the locales are ready!"
 		else
 			msg -e "Sorry, I failed to generate the locales."
 		fi
@@ -152,16 +152,16 @@ PROGRAM_NAME="$(basename "${0}")"
 DISTRO_REPOSITORY="termux-distro"
 VERSION_NAME="1.0"
 
-SHASUM_TYPE=256
+SHASUM_CMD=sha256sum
 TRUSTED_SHASUMS="$(
 	cat <<-EOF
-		88386c62d1ee127a18658ac99adb34eb9d8e930f2861979f5c98fb003adbd0f9 *termux-distro-template.sh
+		88386c62d1ee127a18658ac99adb34eb9d8e930f2861979f5c98fb003adbd0f9 *termux-distro-arm64.tar.xz
 	EOF
 )"
 
 ARCHIVE_STRIP_DIRS=0 # directories stripped by tar when extracting rootfs archive
 KERNEL_RELEASE="6.2.1-termux-distro-proot"
-BASE_URL="https://raw.githubusercontent.com/jorexdeveloper/termux-distro/termux-distro.sh"
+BASE_URL="https://raw.githubusercontent.com/jorexdeveloper/termux-distro"
 
 TERMUX_FILES_DIR="/data/data/com.termux/files"
 
@@ -178,7 +178,7 @@ distro_template="$(realpath "$(dirname "${0}")")/termux-distro.sh"
 # shellcheck disable=SC1090
 if [ -f "${distro_template}" ] && [ -r "${distro_template}" ]; then
 	source "${distro_template}" "${@}"
-elif curl -fsSLO "https://raw.githubusercontent.com/jorexdeveloper/termux-distro/termux-distro.sh" 2>"/dev/null" && [ -f "${distro_template}" ]; then
+elif curl -fsSLO "https://raw.githubusercontent.com/jorexdeveloper/termux-distro/main/termux-distro.sh" 2>"/dev/null" && [ -f "${distro_template}" ]; then
 	source "${distro_template}"
 else
 	echo "You need an active internet connection to run this script."

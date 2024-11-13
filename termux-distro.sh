@@ -77,7 +77,7 @@ check_arch() {
 			;;
 		*) msg -q "Sorry, '${Y}${arch}${R}' is currently not supported." ;;
 	esac
-	msg -s "Great, '${Y}${arch}${G}' is supported!"
+	msg -s "Yup, '${Y}${arch}${G}' is supported!"
 }
 
 ################################################################################
@@ -102,7 +102,7 @@ check_pkgs() {
 			fi
 		fi
 	done
-	msg -s "Great, you have all the required packages!"
+	msg -s "Yup, you have all the required packages!"
 	unset package
 }
 
@@ -142,7 +142,7 @@ check_rootfs_directory() {
 			fi
 		fi
 		msg "Okay, deleting '${Y}${ROOTFS_DIRECTORY}${C}'!"
-		if rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
+		if chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}" && rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
 			msg -s "Done, let's proceed."
 		else
 			msg -q "Sorry, I failed to delete '${Y}${ROOTFS_DIRECTORY}${R}'."
@@ -172,7 +172,7 @@ download_rootfs_archive() {
 				fi
 			fi
 			msg "Okay, deleting '${Y}${ARCHIVE_NAME}${C}'."
-			if rm -rf "${ARCHIVE_NAME}" 2>>"${LOG_FILE}"; then
+			if chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}" && rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
 				msg -s "Done, let's proceed."
 			else
 				msg -q "Sorry, I failed to delete '${Y}${ARCHIVE_NAME}${R}'."
@@ -184,7 +184,7 @@ download_rootfs_archive() {
 			mv "${tmp_dload}" "${ARCHIVE_NAME}" &>>"${LOG_FILE}"
 			msg -s "Great, the rootfs download is complete!"
 		else
-			rm -rf "${tmp_dload}" &>>"${LOG_FILE}"
+			chmod 777 -R "${tmp_dload}" &>>"${LOG_FILE}" && rm -rf "${tmp_dload}" &>>"${LOG_FILE}"
 			msg -qm0 "Sorry, I failed to download the rootfs archive."
 		fi
 	fi
@@ -196,8 +196,8 @@ download_rootfs_archive() {
 verify_rootfs_archive() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
 		msg -t "Give me a sec to make sure the rootfs archive is ok."
-		if grep --regexp="${ARCHIVE_NAME}$" <<<"${TRUSTED_SHASUMS}" 2>>"${LOG_FILE}" | sha"${SHASUM_TYPE}"sum --quiet --check &>>"${LOG_FILE}"; then
-			msg -s "Yup, the rootfs archive is looks fine!"
+		if grep --regexp="${ARCHIVE_NAME}$" <<<"${TRUSTED_SHASUMS}" 2>>"${LOG_FILE}" | "${SHASUM_CMD}" --quiet --check &>>"${LOG_FILE}"; then
+			msg -s "Yup, the rootfs archive looks fine!"
 			return
 		else
 			msg -q "Sorry, the rootfs archive is corrupted and not safe for installation."
@@ -212,13 +212,13 @@ extract_rootfs_archive() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
 		msg -t "Now, grab a coffee while I extract the rootfs archive. This will take a while."
 		# shellcheck disable=SC2064
-		trap "msg -e \"Extraction process interupted. Clearing cache.                 \";echo -ne \"${N}${V}\";rm -rf \"${ROOTFS_DIRECTORY}\";exit 1" HUP INT TERM
+		trap "msg -e \"Extraction process interupted. Clearing cache.                 \";echo -ne \"${N}${V}\";chmod 777 -R \"${ROOTFS_DIRECTORY}\" &>>\"${LOG_FILE}\";rm -rf \"${ROOTFS_DIRECTORY}\" &>>\"${LOG_FILE}\";exit 1" HUP INT TERM
 		mkdir -p "${ROOTFS_DIRECTORY}"
 		set +e
-		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --xz --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far.%*\r${N}${V}" &>>"${LOG_FILE}"; then
+		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --auto-compress --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far.%*\r${N}${V}" &>>"${LOG_FILE}"; then
 			msg -s "Finally, I am done extracting the rootfs archive!."
 		else
-			rm -rf "${ROOTFS_DIRECTORY}"
+			chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}" && rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
 			msg -q "Sorry, I failed to extract the rootfs archive."
 		fi
 		set -e
@@ -403,12 +403,17 @@ create_rootfs_launcher() {
 		    shift 1
 		done
 
+		# Check for login command
 		if [ -z "\${distro_command}" ]; then
-		    if [ -x "${ROOTFS_DIRECTORY}/usr/bin/login" ]; then
+			# Prefer su as login command
+		    if [ -x "${ROOTFS_DIRECTORY}/bin/su" ]; then
+			    distro_command="su --login \${login_name}"
+			elif [ -x "${ROOTFS_DIRECTORY}/bin/login" ]; then
 		        distro_command="login \${login_name}"
 		    else
-		        echo "The command 'login' was not found in guest rootfs."
+		        echo "Couldn't find any login command in the guest rootfs."
 		        echo "Use '$(basename "${DISTRO_LAUNCHER}") --command[=COMMAND]'."
+				echo "See '$(basename "${DISTRO_LAUNCHER}") --help' for more information."
 		        exit 1
 		    fi
 		fi
@@ -576,7 +581,7 @@ create_rootfs_launcher() {
 		fi
 
 		# Setup the default environment
-		launch_command+=" /usr/bin/env -i HOME=/root LANG=C.UTF-8 TERM=\${TERM-xterm-256color} PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/games:/usr/local/bin:/usr/local/sbin:/usr/local/games:/system/bin:/system/xbin"
+		launch_command+=" /bin/env -i HOME=/root LANG=C.UTF-8 TERM=\${TERM-xterm-256color} PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/games:/usr/local/bin:/usr/local/sbin:/usr/local/games:/system/bin:/system/xbin"
 
 		# Enable audio support in distro (for root users, add option '--system')
 		pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
@@ -598,7 +603,7 @@ create_vnc_launcher() {
 	msg -t "Lemme create a vnc wrapper in ${DISTRO_NAME}."
 	local vnc_launcher="${ROOTFS_DIRECTORY}/usr/local/bin/vnc"
 	mkdir -p "${ROOTFS_DIRECTORY}/usr/local/bin" &>>"${LOG_FILE}" && cat >"${vnc_launcher}" 2>>"${LOG_FILE}" <<-EOF
-		#!/usr/bin/bash -e
+		#!/bin/bash -e
 
 		################################################################################
 		#                                                                              #
@@ -732,15 +737,70 @@ create_vnc_launcher() {
 make_configurations() {
 	msg -t "Now, lemme make some configurations for you."
 	for config in fake_proc_setup android_ids_setup settings_configurations environment_variables_setup; do
-		status="$(${config} 2>"${LOG_FILE}")"
+		status="$(${config} 2>>"${LOG_FILE}")"
 		if [ -n "${status//-0/}" ]; then
 			msg -e "Oops, ${config//_/ } failed with error code: (${status})"
 		fi
 	done
 	msg -s "Hopefully, that fixes some startup issues."
 	unset config status
-	set_user_shell
-	set_zone_info
+}
+
+################################################################################
+# Sets a custom login shell in distro                                          #
+################################################################################
+set_user_shell() {
+	if [ -x "${ROOTFS_DIRECTORY}/bin/chsh" ] && {
+		if [ -z "${shell}" ]; then
+			[ -f "${ROOTFS_DIRECTORY}/etc/passwd" ] && local default_shell="$(grep root "${ROOTFS_DIRECTORY}/etc/passwd" | cut -d: -f7)"
+			[ -z "${default_shell}" ] && default_shell="unknown"
+			ask -n -- -t "Should I change the default login shell from '${Y}${default_shell}${C}'?"
+		fi
+	}; then
+		# shellcheck disable=SC2207
+		local shells=($(grep '^/bin' "${ROOTFS_DIRECTORY}"/etc/shells 2>>"${LOG_FILE}" | cut -d'/' -f3 2>>"${LOG_FILE}"))
+		msg "Installed shells: ${Y}${shells[*]}${C}"
+		msg -n "Enter shell name:"
+		[ "${default_shell}" = "unknown" ] && default_shell="${shells[0]}"
+		read -rep " " -i "$(basename "${default_shell}")" shell
+		shell="$(basename "${shell}")"
+		if [[ ${shells[*]} == *"${shell}"* ]] && [ -x "${ROOTFS_DIRECTORY}/bin/${shell}" ] && {
+			distro_exec /bin/chsh -s "/bin/${shell}" root &>>"${LOG_FILE}"
+			if [ "${DEFAULT_LOGIN}" != "root" ]; then
+				distro_exec /bin/chsh -s "/bin/${shell}" "${DEFAULT_LOGIN}" &>>"${LOG_FILE}"
+			fi
+		}; then
+			msg -s "The default login shell is now '${Y}/bin/${shell}${G}'."
+		else
+			msg -e "Sorry, I failed to set the default login shell to '${Y}${shell}${R}'."
+			ask -n -- "Wanna try again?" && set_user_shell
+		fi
+		unset shell
+	fi
+}
+
+################################################################################
+# Sets a custom time zone in distro                                            #
+################################################################################
+set_zone_info() {
+	if [ -x "${ROOTFS_DIRECTORY}/bin/ln" ] && {
+		if [ -z "${zone}" ]; then
+			local default_localtime="$(cat "${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}")"
+			[ -z "${default_localtime}" ] && default_localtime="unknown"
+			ask -n -- -t "Should I change the local time from '${Y}${default_localtime}${C}'?"
+		fi
+	}; then
+		msg -n "Enter time zone (format='Country/City'):"
+		[ "${default_localtime}" = "unknown" ] && default_localtime="Etc/UTC"
+		read -rep " " -i "${default_localtime}" zone
+		if [ -f "${ROOTFS_DIRECTORY}/usr/share/zoneinfo/${zone}" ] && echo "${zone}" >"${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}" && distro_exec "/bin/ln" -fs -T "/usr/share/zoneinfo/${zone}" "/etc/localtime" 2>>"${LOG_FILE}"; then
+			msg -s "The default time zone is now '${Y}${zone}${G}'."
+		else
+			msg -e "Sorry, I failed to set the local time to '${Y}${zone}${R}'."
+			ask -n -- "Wanna try again?" && set_zone_info
+		fi
+		unset zone
+	fi
 }
 
 ################################################################################
@@ -750,7 +810,7 @@ clean_up() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ] && [ -z "${KEEP_ROOTFS_ARCHIVE}" ] && [ -f "${ARCHIVE_NAME}" ]; then
 		if ask -n -- -t "Can I remove the downloaded the rootfs archive to save space?"; then
 			msg "Okay, removing '!{Y}${ARCHIVE_NAME}${C}'"
-			if rm -rf "${ARCHIVE_NAME}"; then
+			if chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}" && rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
 				msg -s "Done, the rootfs archive is gone!"
 			else
 				msg -e "Sorry, I failed to remove the rootfs archive."
@@ -765,16 +825,17 @@ clean_up() {
 # Prints a message for successful installation with other useful information   #
 ################################################################################
 complete_msg() {
+	# Just for customizing message
 	if [ "${action}" = "install" ]; then
 		local name="installed"
 	else
 		local name="configured"
 	fi
 	msg -st "That's it, we have now successfuly ${name} ${DISTRO_NAME}."
-	msg "You can launch it by executing: '${Y}$(basename "${DISTRO_LAUNCHER}")${C}'."
-	msg "The default username is '${Y}${DEFAULT_LOGIN}${C}'"
+	msg "You can launch it by executing '${Y}$(basename "${DISTRO_LAUNCHER}")${C}' to login as '${Y}${DEFAULT_LOGIN}${C}'."
+	msg "If you want to login as another user, add the user name as an argument."
 	msg -t "I also think you might need a short form for '${Y}$(basename "${DISTRO_LAUNCHER}")${C}'."
-	msg "So have I created '${Y}$(basename "${DISTRO_SHORTCUT}")${C}' that does the same thing."
+	msg "So have I created '${Y}$(basename "${DISTRO_SHORTCUT}")${C}' which is shorter."
 	msg -t "If you have further inquiries, read the documentation at:"
 	msg "${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
@@ -787,10 +848,10 @@ uninstall_rootfs() {
 		msg -ate "You are about to uninstall ${DISTRO_NAME} from '${Y}${ROOTFS_DIRECTORY}${R}'."
 		if ask -n0 -- -a "Confirm action."; then
 			msg -a "Uninstalling ${DISTRO_NAME}, just a sec."
-			if rm -rf "${ROOTFS_DIRECTORY}" 2>>"${LOG_FILE}"; then
+			if chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}" && rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
 				msg -as "Done, ${DISTRO_NAME} uninstalled successfully!"
 				msg -a "Removing commands."
-				if rm -rf "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" 2>>"${LOG_FILE}"; then
+				if chmod 777 -R "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}" && rm -rf "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}"; then
 					msg -as "Done, commands removed successfully!"
 				else
 					msg -ae "Sorry, I failed to remove:"
@@ -1193,14 +1254,14 @@ settings_configurations() {
 		sed -i '/^if/,/^fi/d' "${ROOTFS_DIRECTORY}/root/.bash_profile"
 	fi
 	status+="-${?}"
-	if [ -x "${ROOTFS_DIRECTORY}/usr/bin/passwd" ]; then
-		distro_exec "/usr/bin/passwd" -d root
+	if [ -x "${ROOTFS_DIRECTORY}/bin/passwd" ]; then
+		distro_exec "/bin/passwd" -d root
 		if [ "${DEFAULT_LOGIN}" != "root" ]; then
-			distro_exec "/usr/bin/passwd" -d "${DEFAULT_LOGIN}"
+			distro_exec "/bin/passwd" -d "${DEFAULT_LOGIN}"
 		fi
 	fi &>>"${LOG_FILE}"
 	status+="-${?}"
-	local dir="${ROOTFS_DIRECTORY}/usr/bin"
+	local dir="${ROOTFS_DIRECTORY}/bin"
 	if [ -x "${dir}/sudo" ]; then
 		chmod +s "${dir}/sudo"
 		if [ "${DEFAULT_LOGIN}" != "root" ]; then
@@ -1213,7 +1274,7 @@ settings_configurations() {
 	fi
 	status+="-${?}"
 	local resol_conf="${ROOTFS_DIRECTORY}/etc/resolv.conf"
-	rm -f "${resol_conf}"
+	chmod 777 -R "${resol_conf}" && rm -f "${resol_conf}"
 	if touch "${resol_conf}" && chmod +w "${resol_conf}"; then
 		cat >"${resol_conf}" <<-EOF
 			nameserver 8.8.8.8
@@ -1235,59 +1296,6 @@ settings_configurations() {
 	EOF
 	status+="-${?}"
 	echo -n "${status}"
-}
-
-################################################################################
-# Sets a custom login shell in distro                                          #
-################################################################################
-set_user_shell() {
-	if [ -x "${ROOTFS_DIRECTORY}/usr/bin/chsh" ] && {
-		if [ -z "${shell}" ]; then
-			[ -f "${ROOTFS_DIRECTORY}/etc/passwd" ] && local default_shell="$(grep root "${ROOTFS_DIRECTORY}/etc/passwd" | cut -d: -f7)"
-			ask -n -- -t "Should I change the default login shell from '${Y}${default_shell-<unknown>}${C}'?"
-		fi
-	}; then
-		# shellcheck disable=SC2207
-		local shells=($(grep '/usr/bin' "${ROOTFS_DIRECTORY}"/etc/shells 2>>"${LOG_FILE}" | cut -d'/' -f4 2>>"${LOG_FILE}"))
-		msg "Installed shells: ${Y}${shells[*]}${C}"
-		msg -n "Enter shell name:"
-		read -rep " " -i "$(basename "${default_shell-${shells[0]}}")" shell
-		shell="$(basename "${shell}")"
-		if [[ ${shells[*]} == *"${shell}"* ]] && [ -x "${ROOTFS_DIRECTORY}/usr/bin/${shell}" ] && {
-			distro_exec /usr/bin/chsh -s "/usr/bin/${shell}" root 2>>"${LOG_FILE}"
-			if [ "${DEFAULT_LOGIN}" != "root" ]; then
-				distro_exec /usr/bin/chsh -s "/usr/bin/${shell}" "${DEFAULT_LOGIN}" 2>>"${LOG_FILE}"
-			fi
-		}; then
-			msg -s "The default login shell is now '${Y}/usr/bin/${shell}${G}'."
-		else
-			msg -e "Sorry, I failed to set the default login shell to '${Y}${shell}${R}'."
-			ask -n -- "Wanna try again?" && set_user_shell
-		fi
-		unset shell
-	fi
-}
-
-################################################################################
-# Sets a custom time zone in distro                                            #
-################################################################################
-set_zone_info() {
-	if [ -x "${ROOTFS_DIRECTORY}/usr/bin/ln" ] && {
-		if [ -z "${zone}" ]; then
-			local default_localtime="$(cat "${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}")"
-			ask -n -- -t "Should I change the local time from '${Y}${default_localtime-unknown}${C}'?"
-		fi
-	}; then
-		msg -n "Enter time zone (format='Country/City'):"
-		read -rep " " -i "${default_localtime}" zone
-		if [ -f "${ROOTFS_DIRECTORY}/usr/share/zoneinfo/${zone}" ] && echo "${zone}" >"${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}" && distro_exec "/usr/bin/ln" -fs -T "/usr/share/zoneinfo/${zone}" "/etc/localtime" 2>>"${LOG_FILE}"; then
-			msg -s "The default time zone is now '${Y}${zone}${G}'."
-		else
-			msg -e "Sorry, I failed to set the local time to '${Y}${zone}${R}'."
-			ask -n -- "Wanna try again?" && set_zone_info
-		fi
-		unset zone
-	fi
 }
 
 ################################################################################
@@ -1316,7 +1324,7 @@ distro_exec() {
 		--rootfs="${ROOTFS_DIRECTORY}" \
 		--link2symlink \
 		--kill-on-exit \
-		/usr/bin/env -i \
+		/bin/env -i \
 		"HOME=/root" \
 		"LANG=C.UTF-8" \
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
@@ -1670,6 +1678,8 @@ if ${ACTION_CONFIGURE}; then
 	pre_config_actions # External function
 	make_configurations
 	post_config_actions # External function
+	set_user_shell
+	set_zone_info
 fi
 
 # Clean up files
