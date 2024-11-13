@@ -48,8 +48,6 @@ safety_check() {
 # Prints the distro an introducing message.                                    #
 ################################################################################
 print_intro() {
-	clear
-	distro_banner
 	msg -t "Hey there, I'm ${AUTHOR}."
 	msg "I am here to help you to ${action-install} ${DISTRO_NAME} in Termux."
 }
@@ -217,7 +215,7 @@ extract_rootfs_archive() {
 		trap "msg -e \"Extraction process interupted. Clearing cache.                 \";echo -ne \"${N}${V}\";rm -rf \"${ROOTFS_DIRECTORY}\";exit 1" HUP INT TERM
 		mkdir -p "${ROOTFS_DIRECTORY}"
 		set +e
-		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --warning=no-unknown-keyword --extract --xz --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far.%*\r${N}${V}" &>>"${LOG_FILE}"; then
+		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --xz --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far.%*\r${N}${V}" &>>"${LOG_FILE}"; then
 			msg -s "Finally, I am done extracting the rootfs archive!."
 		else
 			rm -rf "${ROOTFS_DIRECTORY}"
@@ -724,7 +722,7 @@ create_vnc_launcher() {
 	if chmod 700 "${vnc_launcher}" &>>"${LOG_FILE}"; then
 		msg -s "Done, wrapper created successfully!"
 	else
-		msg -e "Sorry, I failed to create the vnc launcher."
+		msg -e "Sorry, I failed to create the vnc wrapper."
 	fi
 }
 
@@ -773,12 +771,12 @@ complete_msg() {
 		local name="configured"
 	fi
 	msg -st "That's it, we have now successfuly ${name} ${DISTRO_NAME}."
-	msg "You can launch it by executing: '${Y}$(basename "${DISTRO_LAUNCHER}") <username>${C}'."
+	msg "You can launch it by executing: '${Y}$(basename "${DISTRO_LAUNCHER}")${C}'."
 	msg "The default username is '${Y}${DEFAULT_LOGIN}${C}'"
 	msg -t "I also think you might need a short form for '${Y}$(basename "${DISTRO_LAUNCHER}")${C}'."
 	msg "So have I created '${Y}$(basename "${DISTRO_SHORTCUT}")${C}' that does the same thing."
 	msg -t "If you have further inquiries, read the documentation at:"
-	msg "${M}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
+	msg "${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
 
 ################################################################################
@@ -814,8 +812,8 @@ uninstall_rootfs() {
 ################################################################################
 print_version() {
 	msg -a "${DISTRO_NAME} installer, version ${Y}${VERSION_NAME}${C}."
-	msg -a "Copyright (C) 2023 ${AUTHOR} <${M}${U}${GITHUB}${L}${C}>."
-	msg -a "License GPLv3+: GNU GPL version 3 or later <${M}${U}http://gnu.org/licenses/gpl.html${L}${C}>."
+	msg -a "Copyright (C) 2023 ${AUTHOR} <${B}${U}${GITHUB}${L}${C}>."
+	msg -a "License GPLv3+: GNU GPL version 3 or later <${B}${U}http://gnu.org/licenses/gpl.html${L}${C}>."
 	msg -aN "This is free software, you are free to change and redistribute it."
 	msg -a "There is NO WARRANTY, to the extent permitted by law."
 }
@@ -847,7 +845,7 @@ print_usage() {
 	msg "        Valid arguments are: [on|yes|auto] or [off|no|none]"
 	msg -aN "Installation directory (DIRECTORY) must be within '${Y}${TERMUX_FILES_DIR}${C}'"
 	msg -a "(or its sub-directories) to prevent permission issues."
-	msg -aN "Documentation: ${M}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
+	msg -aN "Documentation: ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
 
 ################################################################################
@@ -1092,20 +1090,22 @@ fake_proc_setup() {
 }
 
 ################################################################################
-# Creates a srcript in /etc/profile.d containing the required environment      #
-# variables in the distro                                                      #
+# Writes important environment variables to /etc/environment.                  #
 ################################################################################
 environment_variables_setup() {
+	local marker="${PROGRAM_NAME} variables"
+	local env_file="${ROOTFS_DIRECTORY}/etc/environment"
 	local status=""
-	local profile_script="${ROOTFS_DIRECTORY}/etc/profile.d/setvars.sh"
-	mkdir -p "${ROOTFS_DIRECTORY}/etc/profile.d/"
-	cat /dev/null >"${profile_script}"
-	cat >>"${profile_script}" <<-EOF
+	local path="/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin:/usr/games:/usr/local/games:/system/bin:/system/xbin:${TERMUX_FILES_DIR}/usr/bin:${TERMUX_FILES_DIR}/usr/local/bin"
+	sed -i "/^### start\s${marker}\s###$/,/^###\send\s${marker}\s###$/d" "${env_file}"
+	sed -i "/^$/d" "${env_file}"
+	echo -e "\n### start ${marker} ###\n" >>"${env_file}"
+	cat >>"${env_file}" <<-EOF
 		# Environment variables
-		export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/games:/usr/local/bin:/usr/local/sbin:/usr/local/games:/system/bin:/system/xbin:${TERMUX_FILES_DIR}/usr/bin"
+		export PATH="${path}"
 		export TERM="${TERM-xterm-256color}"
 		if [ -z "\${LANG}" ]; then
-		    export LANG="C.UTF-8"
+		    export LANG="en_US.UTF-8"
 		fi
 
 		# pulseaudio server
@@ -1129,21 +1129,30 @@ environment_variables_setup() {
 	else
 		java_home="/usr/lib/jvm/java-[0-9][0-9]-openjdk-aarch64"
 	fi
-	cat >>"${profile_script}" <<-EOF
-
+	# These don't work well in env_file
+	mkdir -p "${ROOTFS_DIRECTORY}/etc/profile.d/"
+	cat >"${ROOTFS_DIRECTORY}/etc/profile.d/java.sh" <<-EOF
 		# JDK variables
 		export JAVA_HOME="\$(echo ${java_home})"
 		export PATH="\${PATH}:\${JAVA_HOME}/bin"
 	EOF
 	status+="-${?}"
-	echo -e "\n# Host system variables" >>"${profile_script}"
+	echo -e "\n# Host system variables" >>"${env_file}"
 	for var in COLORTERM ANDROID_DATA ANDROID_ROOT ANDROID_ART_ROOT ANDROID_I18N_ROOT ANDROID_RUNTIME_ROOT ANDROID_TZDATA_ROOT BOOTCLASSPATH DEX2OATBOOTCLASSPATH; do
 		if [ -n "${!var}" ]; then
-			echo "export ${var}=\"${!var}\"" >>"${profile_script}"
+			echo "export ${var}=\"${!var}\"" >>"${env_file}"
 		fi
 	done
-	unset var
 	status+="-${?}"
+	unset var
+	echo -e "\n### end ${marker} ###\n" >>"${env_file}"
+	# Fix PATH in some configuration files.
+	for f in /etc/bash.bashrc /etc/profile; do # /etc/login.defs
+		[ ! -e "${ROOTFS_DIRECTORY}${f}" ] && continue
+		sed -i -E "s@\<(PATH=)(\"?[^\"[:space:]]+(\"|\$|\>))@\1\"${path}\"@g" "${ROOTFS_DIRECTORY}${f}"
+	done
+	status+="-${?}"
+	unset f
 	echo -n "${status}"
 }
 
@@ -1204,6 +1213,7 @@ settings_configurations() {
 	fi
 	status+="-${?}"
 	local resol_conf="${ROOTFS_DIRECTORY}/etc/resolv.conf"
+	rm -f "${resol_conf}"
 	if touch "${resol_conf}" && chmod +w "${resol_conf}"; then
 		cat >"${resol_conf}" <<-EOF
 			nameserver 8.8.8.8
@@ -1319,11 +1329,12 @@ distro_exec() {
 # Initializes the color variables                                              #
 ################################################################################
 colors() {
+	# Colors added must also be added in else for clearing
 	if [ -x "$(command -v tput)" ] && [ "$(tput colors)" -ge 8 ] && [[ ${COLOR_SUPPORT} =~ "on"|"yes"|"auto" ]]; then
 		R="$(echo -e "sgr0\nbold\nsetaf 1" | tput -S)"
 		G="$(echo -e "sgr0\nbold\nsetaf 2" | tput -S)"
 		Y="$(echo -e "sgr0\nbold\nsetaf 3" | tput -S)"
-		M="$(echo -e "sgr0\nbold\nsetaf 5" | tput -S)"
+		B="$(echo -e "sgr0\nbold\nsetaf 4" | tput -S)"
 		C="$(echo -e "sgr0\nbold\nsetaf 6" | tput -S)"
 		I="$(tput civis)" # hide cursor
 		V="$(tput cvvis)" # show cursor
@@ -1334,6 +1345,7 @@ colors() {
 		R=""
 		G=""
 		Y=""
+		B=""
 		C=""
 		I=""
 		V=""
@@ -1519,6 +1531,7 @@ ACTION_INSTALL=true
 ACTION_CONFIGURE=true
 ACTION_UNINSTALL=false
 
+# Process command line options
 ARGS=()
 while [ "${#}" -gt 0 ]; do
 	case "${1}" in
@@ -1591,10 +1604,12 @@ while [ "${#}" -gt 0 ]; do
 	esac
 	shift 1
 done
+
+# Set extra args
 set -- "${ARGS[@]}"
 unset ARGS
 
-# Prevent extra arguments
+# Prevent extra arguments except directory
 if [ "${#}" -gt 1 ]; then
 	msg -aqm1 "Too many arguments."
 fi
@@ -1617,28 +1632,31 @@ fi
 
 # Pre install actions
 if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
-	pre_check_actions
+	pre_check_actions # External function
 	safety_check
+	# For some mesaage customizations
 	if ${ACTION_INSTALL}; then
 		action="install"
 	else
 		action=configure
 	fi
+	clear
+	distro_banner # External function
 	print_intro
 	check_arch
 	check_pkgs
-	post_check_actions
+	post_check_actions # External function
 	msg -t "I shall now ${action} ${DISTRO_NAME} in '${Y}${ROOTFS_DIRECTORY}${C}'."
 fi
 
 # Install actions
 if ${ACTION_INSTALL}; then
 	check_rootfs_directory
-	pre_install_actions
+	pre_install_actions # External function
 	download_rootfs_archive
 	verify_rootfs_archive
 	extract_rootfs_archive
-	post_install_actions
+	post_install_actions # External function
 fi
 
 # Create launchers
@@ -1649,9 +1667,9 @@ fi
 
 # Post install configurations
 if ${ACTION_CONFIGURE}; then
-	pre_config_actions
+	pre_config_actions # External function
 	make_configurations
-	post_config_actions
+	post_config_actions # External function
 fi
 
 # Clean up files
@@ -1661,7 +1679,7 @@ fi
 
 # Print message for successful completion
 if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
-	pre_complete_actions
+	pre_complete_actions # External function
 	complete_msg
-	post_complete_actions
+	post_complete_actions # External function
 fi
