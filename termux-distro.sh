@@ -646,7 +646,7 @@ create_vnc_launcher() {
 		        export HOME="\${HOME-/root}"
 		        export USER="\${USER-root}"
 		        LD_PRELOAD="${LIB_GCC_PATH}"
-		        vncserver \${DISPLAY} -geometry "\${geometry}" -depth "\${DEPTH}" "\${@}"
+		        vncserver "\${DISPLAY}" -geometry "\${geometry}" -depth "\${DEPTH}" "\${@}"
 		    else
 		        vncpasswd && start_session
 		    fi
@@ -657,7 +657,7 @@ create_vnc_launcher() {
 		}
 
 		kill_session() {
-		    vncserver -clean -kill \${DISPLAY} "\${@}" && clean_tmp
+		    vncserver -clean -kill "\${DISPLAY}" "\${@}" && clean_tmp
 		}
 
 		print_usage() {
@@ -689,7 +689,7 @@ create_vnc_launcher() {
 		HEIGHT=720
 		ORIENTATION="l"
 
-		if ! ([ -x "\$(command -v vncserver)" ] && [ -x "\$(command -v vncpasswd)" ]); then
+		if ! { [ -x "\$(command -v vncserver)" ] && [ -x "\$(command -v vncpasswd)" ]; }; then
 		    echo "No vnc server found."
 		    exit 1
 		fi
@@ -719,9 +719,9 @@ create_vnc_launcher() {
 		done
 
 		case "\${action}" in
-		    k) kill_session "\${opts}" ;;
-		    s) check_status "\${opts}" ;;
-		    *) root_check && clean_tmp && set_geometry && start_session "\${opts}" ;;
+		    k) kill_session "\${opts[@]}" ;;
+		    s) check_status "\${opts[@]}" ;;
+		    *) root_check && clean_tmp && set_geometry && start_session "\${opts[@]}" ;;
 		esac
 	EOF
 	if chmod 700 "${vnc_launcher}" &>>"${LOG_FILE}"; then
@@ -754,7 +754,7 @@ set_user_shell() {
 		if [ -z "${shell}" ]; then
 			[ -f "${ROOTFS_DIRECTORY}/etc/passwd" ] && local default_shell="$(grep root "${ROOTFS_DIRECTORY}/etc/passwd" | cut -d: -f7)"
 			[ -z "${default_shell}" ] && default_shell="unknown"
-			ask -n -- -t "Should I change the default login shell from '${Y}${default_shell}${C}'?"
+			ask -n -- -t "Do you want to change the default login shell from '${Y}${default_shell}${C}'?"
 		fi
 	}; then
 		# shellcheck disable=SC2207
@@ -787,7 +787,7 @@ set_zone_info() {
 		if [ -z "${zone}" ]; then
 			local default_localtime="$(cat "${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}")"
 			[ -z "${default_localtime}" ] && default_localtime="unknown"
-			ask -n -- -t "Should I change the local time from '${Y}${default_localtime}${C}'?"
+			ask -n -- -t "Do you want to change the local time from '${Y}${default_localtime}${C}'?"
 		fi
 	}; then
 		msg -n "Enter time zone (format='Country/City'):"
@@ -1157,7 +1157,7 @@ environment_variables_setup() {
 	local marker="${PROGRAM_NAME} variables"
 	local env_file="${ROOTFS_DIRECTORY}/etc/environment"
 	local status=""
-	local path="/sbin:/usr/sbin:/usr/local/sbin:/bin:/usr/bin:/usr/local/bin:/usr/games:/usr/local/games:/system/bin:/system/xbin:${TERMUX_FILES_DIR}/usr/bin:${TERMUX_FILES_DIR}/usr/local/bin"
+	local path="/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games:/system/bin:/system/xbin:${TERMUX_FILES_DIR}/usr/local/bin:${TERMUX_FILES_DIR}/usr/bin"
 	sed -i "/^### start\s${marker}\s###$/,/^###\send\s${marker}\s###$/d" "${env_file}"
 	sed -i "/^$/d" "${env_file}"
 	echo -e "\n### start ${marker} ###\n" >>"${env_file}"
@@ -1185,7 +1185,7 @@ environment_variables_setup() {
 	EOF
 	status+="-${?}"
 	local java_home
-	if [[ ${SYS_ARCH} == "armhf" ]]; then
+	if [[ "${SYS_ARCH}" == "armhf" ]]; then
 		java_home="/usr/lib/jvm/java-[0-9][0-9]-openjdk-armhf"
 	else
 		java_home="/usr/lib/jvm/java-[0-9][0-9]-openjdk-aarch64"
@@ -1208,11 +1208,11 @@ environment_variables_setup() {
 	unset var
 	echo -e "\n### end ${marker} ###\n" >>"${env_file}"
 	# Fix PATH in some configuration files.
-	for f in /etc/bash.bashrc /etc/profile; do # /etc/login.defs
-		[ ! -e "${ROOTFS_DIRECTORY}${f}" ] && continue
-		sed -i -E "s@\<(PATH=)(\"?[^\"[:space:]]+(\"|\$|\>))@\1\"${path}\"@g" "${ROOTFS_DIRECTORY}${f}"
-	done
-	status+="-${?}"
+	# for f in /etc/bash.bashrc /etc/profile; do # /etc/login.defs
+	# 	[ ! -e "${ROOTFS_DIRECTORY}${f}" ] && continue
+	# 	sed -i -E "s@\<(PATH=)(\"?[^\"[:space:]]+(\"|\$|\>))@\1\"${path}\"@g" "${ROOTFS_DIRECTORY}${f}"
+	# done
+	# status+="-${?}"
 	unset f
 	echo -n "${status}"
 }
