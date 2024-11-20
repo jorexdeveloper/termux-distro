@@ -583,6 +583,11 @@ create_rootfs_launcher() {
 		# Setup the default environment
 		launch_command+=" /bin/env -i HOME=/root LANG=C.UTF-8 TERM=\${TERM-xterm-256color} PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/games:/usr/local/bin:/usr/local/sbin:/usr/local/games:/system/bin:/system/xbin"
 
+		# Kill all running audio servers
+		if [ -x "\$(command -v killall)" ]; then
+			killall -qw -9 pulseaudio || true
+		fi
+
 		# Enable audio support in distro (for root users, add option '--system')
 		pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
 
