@@ -647,7 +647,7 @@ create_vnc_launcher() {
 		}
 
 		start_session() {
-		    if [ -f "\${HOME}/.vnc/passwd" ] && [ -r "\${HOME}/.vnc/passwd" ]; then
+		    if [ -e "\${HOME}/.vnc/passwd" ] || [ -e "\${HOME}/.config/tigervnc/passwd" ]; then
 		        export HOME="\${HOME-/root}"
 		        export USER="\${USER-root}"
 		        LD_PRELOAD="${LIB_GCC_PATH}"
