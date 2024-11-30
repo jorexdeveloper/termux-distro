@@ -41,7 +41,6 @@ safety_check() {
 			msg -aq ""
 		fi
 	fi
-
 }
 
 ################################################################################
@@ -211,7 +210,6 @@ verify_rootfs_archive() {
 extract_rootfs_archive() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
 		msg -t "Now, grab a coffee while I extract the rootfs archive. This will take a while."
-		# shellcheck disable=SC2064
 		trap "msg -e \"Extraction process interupted. Clearing cache.                 \";echo -ne \"${N}${V}\";chmod 777 -R \"${ROOTFS_DIRECTORY}\" &>>\"${LOG_FILE}\";rm -rf \"${ROOTFS_DIRECTORY}\" &>>\"${LOG_FILE}\";exit 1" HUP INT TERM
 		mkdir -p "${ROOTFS_DIRECTORY}"
 		set +e
@@ -231,7 +229,6 @@ extract_rootfs_archive() {
 ################################################################################
 create_rootfs_launcher() {
 	msg -t "Lemme create a command to launch ${DISTRO_NAME}."
-	# shellcheck disable=SC2094
 	mkdir -p "$(dirname "${DISTRO_LAUNCHER}")" &>>"${LOG_FILE}" && cat >"${DISTRO_LAUNCHER}" 2>>"${LOG_FILE}" <<-EOF
 		#!${TERMUX_FILES_DIR}/usr/bin/bash -e
 
@@ -258,6 +255,7 @@ create_rootfs_launcher() {
 		use_termux_ids=false
 		kernel_release="${KERNEL_RELEASE}"
 
+		# Process command line arguments
 		while [ "\${#}" -gt 0 ]; do
 		    case "\${1}" in
 		    --command*)
@@ -402,6 +400,25 @@ create_rootfs_launcher() {
 		    esac
 		    shift
 		done
+
+		# Prevent running as root
+		if [ "\${EUID}" = "0" ] || [ "\$(id -u)" = "0" ]; then
+		    echo "Nope, I can't let you start ${DISTRO_NAME} with root permissions!"
+			echo "This can cause several issues and potentially damage your phone."
+			exit 1
+		fi
+
+		# Prevent running within a chroot environment
+		pid="\$(grep TracerPid "/proc/\$\$/status" | cut -d \$'\t' -f 2)"
+		if [ "\${pid}" != 0 ]; then
+		    name="\$(grep Name "/proc/\${pid}/status" | cut -d \$'\t' -f 2)"
+		    if [ "\$name" = "proot" ]; then
+		        echo "Nope, I can't let you start ${DISTRO_NAME} within a chroot environment!"
+				echo "This can cause performance and other issues."
+				exit 1
+		    fi
+		fi
+		unset pid name
 
 		# Check for login command
 		if [ -z "\${distro_command}" ]; then
@@ -583,7 +600,7 @@ create_rootfs_launcher() {
 		# Setup the default environment
 		launch_command+=" /bin/env -i HOME=/root LANG=C.UTF-8 TERM=\${TERM-xterm-256color} PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/games:/usr/local/bin:/usr/local/sbin:/usr/local/games:/system/bin:/system/xbin"
 
-		# Kill all running audio servers
+		# Kill all running pulseaudio servers
 		if [ -x "\$(command -v killall)" ]; then
 			killall -qw -9 pulseaudio || true
 		fi
@@ -762,7 +779,6 @@ set_user_shell() {
 			ask -n -- -t "Do you want to change the default login shell from '${Y}${default_shell}${C}'?"
 		fi
 	}; then
-		# shellcheck disable=SC2207
 		local shells=($(grep '^/bin' "${ROOTFS_DIRECTORY}"/etc/shells 2>>"${LOG_FILE}" | cut -d'/' -f3 2>>"${LOG_FILE}"))
 		msg "Installed shells: ${Y}${shells[*]}${C}"
 		msg -n "Enter shell name:"
@@ -1613,7 +1629,6 @@ while [ "${#}" -gt 0 ]; do
 	esac
 	shift
 done
-
 set -- "${ARGS[@]}"
 unset ARGS
 
