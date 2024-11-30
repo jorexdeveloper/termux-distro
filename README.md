@@ -43,7 +43,7 @@ Install Arch Linux in Termux.
 
 Contributions to this project are not only welcome, but also encouraged.
 
-Feel free to contribute any additional distribution, after understanding how the installation process of that distribution aligns with the template script in this repository and some preliminary set ups that meed to be made specifically for that distribution.
+Feel free to contribute any additional distribution, after understanding how the installation process of that distribution aligns with the template script in this repository and some preliminary set ups that need to be made specifically for that distribution.
 
 ## License
 

@@ -6,7 +6,7 @@
 #                                                                              #
 #     Template for installing Linux Distro in Termux.                          #
 #                                                                              #
-#     Copyright (C) 2023  Jore <https://github.com/jorexdeveloper>             #
+#     Copyright (C) 2023-2025  Jore <https://github.com/jorexdeveloper>        #
 #                                                                              #
 #     This program is free software: you can redistribute it and/or modify     #
 #     it under the terms of the GNU General Public License as published by     #
@@ -64,7 +64,7 @@ check_arch() {
 	elif [ -x "$(command -v uname)" ]; then
 		arch="$(uname -m 2>>"${LOG_FILE}")"
 	else
-		msg -q "Sorry, I failed to get your device architecture."
+		msg -q "Sorry, have I failed to get your device architecture."
 	fi
 	case "${arch}" in
 		"arm64-v8a" | "armv8l")
@@ -89,7 +89,7 @@ check_pkgs() {
 	if [ -x "$(command -v pkg)" ] && pkg update -y < <(echo -e "y\ny\ny\ny\ny") &>>"${LOG_FILE}" && pkg upgrade -y < <(echo -e "y\ny\ny\ny\ny") &>>"${LOG_FILE}"; then # || apt-get -qq -o=Dpkg::Use-Pty=0 update -y &>>"${LOG_FILE}" || apt-get -qq -o=Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" dist-upgrade -y &>>"${LOG_FILE}"; then
 		msg -s "Yup, Everything looks good!"
 	else
-		msg -qm0 "Sorry, I failed to update your packages."
+		msg -qm0 "Sorry, have I failed to update your packages."
 	fi
 	msg -t "Lemme also check if all the required packages are installed."
 	for package in awk basename curl du proot pulseaudio readlink realpath sed tar unzip xz; do
@@ -98,7 +98,7 @@ check_pkgs() {
 			if pkg install -y "${package}" < <(echo -e "y\ny\ny\ny\ny") &>>"${LOG_FILE}"; then # || apt-get -qq -o=Dpkg::Use-Pty=0 install -y "${package}" &>>"${LOG_FILE}"; then
 				msg -s "Done, '${Y}${package}${G}' is now installed!"
 			else
-				msg -qm0 "Sorry, I failed to install '${Y}${package}${R}'."
+				msg -qm0 "Sorry, have I failed to install '${Y}${package}${R}'."
 			fi
 		fi
 	done
@@ -145,7 +145,7 @@ check_rootfs_directory() {
 		if chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}" && rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
 			msg -s "Done, let's proceed."
 		else
-			msg -q "Sorry, I failed to delete '${Y}${ROOTFS_DIRECTORY}${R}'."
+			msg -q "Sorry, have I failed to delete '${Y}${ROOTFS_DIRECTORY}${R}'."
 		fi
 	fi
 }
@@ -175,7 +175,7 @@ download_rootfs_archive() {
 			if chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}" && rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
 				msg -s "Done, let's proceed."
 			else
-				msg -q "Sorry, I failed to delete '${Y}${ARCHIVE_NAME}${R}'."
+				msg -q "Sorry, have I failed to delete '${Y}${ARCHIVE_NAME}${R}'."
 			fi
 		fi
 		local tmp_dload="${ARCHIVE_NAME}.pending"
@@ -185,7 +185,7 @@ download_rootfs_archive() {
 			msg -s "Great, the rootfs download is complete!"
 		else
 			chmod 777 -R "${tmp_dload}" &>>"${LOG_FILE}" && rm -rf "${tmp_dload}" &>>"${LOG_FILE}"
-			msg -qm0 "Sorry, I failed to download the rootfs archive."
+			msg -qm0 "Sorry, have I failed to download the rootfs archive."
 		fi
 	fi
 }
@@ -219,7 +219,7 @@ extract_rootfs_archive() {
 			msg -s "Finally, I am done extracting the rootfs archive!."
 		else
 			chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}" && rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
-			msg -q "Sorry, I failed to extract the rootfs archive."
+			msg -q "Sorry, have I failed to extract the rootfs archive."
 		fi
 		set -e
 		trap - HUP INT TERM
@@ -241,7 +241,7 @@ create_rootfs_launcher() {
 		#                                                                              #
 		#     Launches ${DISTRO_NAME}.                                                 #
 		#                                                                              #
-		#     Copyright (C) 2023  ${AUTHOR} <${GITHUB}>             #
+		#     Copyright (C) 2023-2025  ${AUTHOR} <${GITHUB}>        #
 		#                                                                              #
 		################################################################################
 
@@ -264,7 +264,7 @@ create_rootfs_launcher() {
 		        optarg="\${1//--command/}"
 		        optarg="\${optarg//=/}"
 		        if [ -z "\${optarg}" ]; then
-		            shift 1
+		            shift
 		            optarg="\${1-}"
 		        fi
 		        if [ -z "\${optarg}" ]; then
@@ -278,7 +278,7 @@ create_rootfs_launcher() {
 		        optarg="\${1//--bind/}"
 		        optarg="\${optarg//=/}"
 		        if [ -z "\${optarg}" ]; then
-		            shift 1
+		            shift
 		            optarg="\${1-}"
 		        fi
 		        if [ -z "\${optarg}" ]; then
@@ -313,7 +313,7 @@ create_rootfs_launcher() {
 		        optarg="\${1//--id/}"
 		        optarg="\${optarg//=/}"
 		        if [ -z "\${optarg}" ]; then
-		            shift 1
+		            shift
 		            optarg="\${1-}"
 		        fi
 		        if [ -z "\${optarg}" ]; then
@@ -327,7 +327,7 @@ create_rootfs_launcher() {
 		        optarg="\${1//--kernel-release/}"
 		        optarg="\${optarg//=/}"
 		        if [ -z "\${optarg}" ]; then
-		            shift 1
+		            shift
 		            optarg="\${1-}"
 		        fi
 		        if [ -z "\${optarg}" ]; then
@@ -382,16 +382,16 @@ create_rootfs_launcher() {
 		        echo "Documentation: ${GITHUB}/${DISTRO_REPOSITORY}"
 		        echo ""
 		        echo "Also see proot(1)"
-		        exit 0
+		        exit
 		        ;;
 		    -v | --version)
 		        echo "${DISTRO_NAME} launcher, version ${VERSION_NAME}."
-		        echo "Copyright (C) 2023 ${AUTHOR} <${GITHUB}>."
+		        echo "Copyright (C) 2023-2025 ${AUTHOR} <${GITHUB}>."
 		        echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
 		        echo ""
 		        echo "This is free software, you are free to change and redistribute it."
 		        echo "There is NO WARRANTY, to the extent permitted by law."
-		        exit 0
+		        exit
 		        ;;
 		    -*)
 		        echo "Unrecognized argument/option '\${1}'."
@@ -400,7 +400,7 @@ create_rootfs_launcher() {
 		        ;;
 		    *) login_name="\${1}" ;;
 		    esac
-		    shift 1
+		    shift
 		done
 
 		# Check for login command
@@ -597,7 +597,7 @@ create_rootfs_launcher() {
 	if ln -sfT "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}" && termux-fix-shebang "${DISTRO_LAUNCHER}" &>>"${LOG_FILE}" && chmod 700 "${DISTRO_LAUNCHER}" &>>"${LOG_FILE}"; then
 		msg -s "Done, launcher created successfully!"
 	else
-		msg -q "Sorry, I failed to create the ${DISTRO_NAME} launcher."
+		msg -q "Sorry, have I failed to create the ${DISTRO_NAME} launcher."
 	fi
 }
 
@@ -616,7 +616,7 @@ create_vnc_launcher() {
 		#                                                                              #
 		#     This script starts the vnc server.                                       #
 		#                                                                              #
-		#     Copyright (C) 2023  ${AUTHOR} <${GITHUB}>             #
+		#     Copyright (C) 2023-2025  ${AUTHOR} <${GITHUB}>        #
 		#                                                                              #
 		################################################################################
 
@@ -716,7 +716,7 @@ create_vnc_launcher() {
 		            ;;
 		        h | help)
 		            print_usage
-		            exit 0
+		            exit
 		            ;;
 		        *) opts=("\${opts[@]}" "\${1}") ;;
 		    esac
@@ -732,7 +732,7 @@ create_vnc_launcher() {
 	if chmod 700 "${vnc_launcher}" &>>"${LOG_FILE}"; then
 		msg -s "Done, wrapper created successfully!"
 	else
-		msg -e "Sorry, I failed to create the vnc wrapper."
+		msg -e "Sorry, have I failed to create the vnc wrapper."
 	fi
 }
 
@@ -777,7 +777,7 @@ set_user_shell() {
 		}; then
 			msg -s "The default login shell is now '${Y}/bin/${shell}${G}'."
 		else
-			msg -e "Sorry, I failed to set the default login shell to '${Y}${shell}${R}'."
+			msg -e "Sorry, have I failed to set the default login shell to '${Y}${shell}${R}'."
 			ask -n -- "Wanna try again?" && set_user_shell
 		fi
 		unset shell
@@ -801,7 +801,7 @@ set_zone_info() {
 		if [ -f "${ROOTFS_DIRECTORY}/usr/share/zoneinfo/${zone}" ] && echo "${zone}" >"${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}" && distro_exec "/bin/ln" -fs -T "/usr/share/zoneinfo/${zone}" "/etc/localtime" 2>>"${LOG_FILE}"; then
 			msg -s "The default time zone is now '${Y}${zone}${G}'."
 		else
-			msg -e "Sorry, I failed to set the local time to '${Y}${zone}${R}'."
+			msg -e "Sorry, have I failed to set the local time to '${Y}${zone}${R}'."
 			ask -n -- "Wanna try again?" && set_zone_info
 		fi
 		unset zone
@@ -818,7 +818,7 @@ clean_up() {
 			if chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}" && rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
 				msg -s "Done, the rootfs archive is gone!"
 			else
-				msg -e "Sorry, I failed to remove the rootfs archive."
+				msg -e "Sorry, have I failed to remove the rootfs archive."
 			fi
 		else
 			msg "Alright, lemme leave the rootfs archive."
@@ -850,7 +850,8 @@ complete_msg() {
 ################################################################################
 uninstall_rootfs() {
 	if [ -d "${ROOTFS_DIRECTORY}" ] && [ -n "$(ls -AU "${ROOTFS_DIRECTORY}" 2>>"${LOG_FILE}")" ]; then
-		msg -ate "You are about to uninstall ${DISTRO_NAME} from '${Y}${ROOTFS_DIRECTORY}${R}'."
+		msg -at "You are about to uninstall ${DISTRO_NAME} from '${Y}${ROOTFS_DIRECTORY}${C}'."
+		msg -ae "This action will delete all files (including valuable ones if any) in this directory!"
 		if ask -n0 -- -a "Confirm action."; then
 			msg -a "Uninstalling ${DISTRO_NAME}, just a sec."
 			if chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}" && rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
@@ -859,11 +860,11 @@ uninstall_rootfs() {
 				if chmod 777 -R "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}" && rm -rf "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}"; then
 					msg -as "Done, commands removed successfully!"
 				else
-					msg -ae "Sorry, I failed to remove:"
+					msg -ae "Sorry, have I failed to remove:"
 					msg -l "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}"
 				fi
 			else
-				msg -aq "Sorry, I failed to uninstall ${DISTRO_NAME}."
+				msg -aq "Sorry, have I failed to uninstall ${DISTRO_NAME}."
 			fi
 		else
 			msg -a "Uninstallation aborted."
@@ -878,7 +879,7 @@ uninstall_rootfs() {
 ################################################################################
 print_version() {
 	msg -a "${DISTRO_NAME} installer, version ${Y}${VERSION_NAME}${C}."
-	msg -a "Copyright (C) 2023 ${AUTHOR} <${B}${U}${GITHUB}${L}${C}>."
+	msg -a "Copyright (C) 2023-2025 ${AUTHOR} <${B}${U}${GITHUB}${L}${C}>."
 	msg -a "License GPLv3+: GNU GPL version 3 or later <${B}${U}http://gnu.org/licenses/gpl.html${L}${C}>."
 	msg -aN "This is free software, you are free to change and redistribute it."
 	msg -a "There is NO WARRANTY, to the extent permitted by law."
@@ -888,17 +889,17 @@ print_version() {
 # Prints the program usage information                                         #
 ################################################################################
 print_usage() {
-	msg -a "Usage: ${Y}${PROGRAM_NAME}${C} [OPTION]... [DIRECTORY]"
-	msg -aN "Install ${DISTRO_NAME} in DIRECTORY."
+	msg -a "Usage: ${Y}${PROGRAM_NAME}${C} [OPTION]... [<install-directory>]"
+	msg -aN "Install ${DISTRO_NAME} in <install-directory>."
 	msg -a "(default='${Y}${DEFAULT_ROOTFS_DIR}${C}')"
 	msg -aN "Options:"
-	msg -- "--change-dir[=DIR]"
-	msg "        Change directory to DIR before execution."
+	msg -- "-d, --directory[=<path>]"
+	msg "        Change directory to <path> before execution."
 	msg -- "--install-only"
 	msg "        Only perform the installation. (Do not configure)."
 	msg -- "--config-only"
 	msg "        Make only required configurations (Do not install)."
-	msg -- "--uninstall"
+	msg -- "-u, --uninstall"
 	msg "        Uninstall ${DISTRO_NAME}."
 	msg -- "-l, --log"
 	msg "        Create log file (${Y}${PROGRAM_NAME%.sh}.log${C})"
@@ -906,11 +907,11 @@ print_usage() {
 	msg "        Print this information and exit."
 	msg -- "-v, --version"
 	msg "        Print program version and exit."
-	msg -- "--color[=ARG]"
-	msg "        Enable/Disable color output. (default='${Y}on${C}' if supported)"
-	msg "        Valid arguments are: [on|yes|auto] or [off|no|none]"
-	msg -aN "Installation directory (DIRECTORY) must be within '${Y}${TERMUX_FILES_DIR}${C}'"
-	msg -a "(or its sub-directories) to prevent permission issues."
+	msg -- "--color[=<when>]"
+	msg "        Enable/Disable color output if supported (default='${Y}on${C}'). Valid"
+	msg "        arguments are: [always|on] or [never|off]"
+	msg -aN "The install path (<install-directory>) must be within '${Y}${TERMUX_FILES_DIR}${C}'"
+	msg -a "(or its sub-directories) to prevent file permission issues."
 	msg -aN "Documentation: ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
 
@@ -1341,9 +1342,8 @@ distro_exec() {
 ################################################################################
 # Initializes the color variables                                              #
 ################################################################################
-colors() {
-	# Colors added must also be added in else for clearing
-	if [ -x "$(command -v tput)" ] && [ "$(tput colors)" -ge 8 ] && [[ ${COLOR_SUPPORT} =~ "on"|"yes"|"auto" ]]; then
+set_colors() {
+	if [ -x "$(command -v tput)" ] && [ "$(tput colors)" -ge 8 ] && [[ ${COLOR_SUPPORT} =~ "on"|"always"|"auto" ]]; then
 		R="$(echo -e "sgr0\nbold\nsetaf 1" | tput -S)"
 		G="$(echo -e "sgr0\nbold\nsetaf 2" | tput -S)"
 		Y="$(echo -e "sgr0\nbold\nsetaf 3" | tput -S)"
@@ -1524,17 +1524,17 @@ ask() {
 ################################################################################
 
 # Project information
-AUTHOR="Jore"
 GITHUB="https://github.com/jorexdeveloper"
+AUTHOR="Jore"
 
 # Output for log messages
 LOG_FILE="/dev/null"
 
 # Enable color by default
-COLOR_SUPPORT=on
+COLOR_SUPPORT=always
 
 # Update color variables
-colors
+set_colors
 
 # Set umask
 umask 0022
@@ -1548,20 +1548,20 @@ ACTION_UNINSTALL=false
 ARGS=()
 while [ "${#}" -gt 0 ]; do
 	case "${1}" in
-		--change-dir*)
-			optarg="${1//--change-dir/}"
+		-d | --directory*)
+			optarg="${1//--directory/}"
 			optarg="${optarg//=/}"
-			if [ -z "${optarg}" ]; then
-				shift 1
-				optarg="${1-}"
+			if [ "${optarg}" = "-d" ] || [ -z "${optarg}" ]; then
+				shift
+				optarg="${1}"
 			fi
 			if [ -z "${optarg}" ]; then
-				msg -aqm1 "Option '--change-dir' requires an argument."
+				msg -aqm1 "Option '--directory' requires an argument."
 			fi
 			if [ -d "${optarg}" ] && [ -r "${optarg}" ]; then
 				cd "${optarg}"
 			else
-				msg -aq "Invalid directory path '${optarg}'."
+				msg -aq "'${optarg}' is not a readable directory!"
 			fi
 			unset optarg
 			;;
@@ -1571,7 +1571,7 @@ while [ "${#}" -gt 0 ]; do
 		--config-only)
 			ACTION_INSTALL=false
 			;;
-		--uninstall)
+		-u | --uninstall)
 			ACTION_UNINSTALL=true
 			;;
 		-l | --log)
@@ -1579,31 +1579,27 @@ while [ "${#}" -gt 0 ]; do
 			;;
 		-v | --version)
 			print_version
-			exit 0
+			exit
 			;;
 		-h | --help)
 			print_usage
-			exit 0
+			exit
 			;;
 		--color*)
 			optarg="${1//--color/}"
 			optarg="${optarg//=/}"
 			if [ -z "${optarg}" ]; then
-				shift 1
+				shift
 				optarg="${1-}"
 			fi
 			case "${optarg}" in
-				on | yes | auto | off | no | never)
+				on | off | always | never | auto)
 					COLOR_SUPPORT="${optarg}"
-					colors
+					set_colors
 					;;
 				"") msg -aqm1 "Option '--color' requires an argument." ;;
 				*)
-					msg -ae "Unrecognized argument '${optarg}' for '--color'."
-					msg -a "Valid arguments are:"
-					msg "'on'  | 'yes' | 'auto'"
-					msg "'off' | 'no'  | 'none'"
-					msg -aqm1
+					msg -aqm1 "Unrecognized color argument '${optarg}'."
 					;;
 			esac
 			unset optarg
@@ -1615,23 +1611,22 @@ while [ "${#}" -gt 0 ]; do
 			ARGS=("${ARGS[@]}" "${1}")
 			;;
 	esac
-	shift 1
+	shift
 done
 
-# Set extra args
 set -- "${ARGS[@]}"
 unset ARGS
 
 # Prevent extra arguments except directory
 if [ "${#}" -gt 1 ]; then
-	msg -aqm1 "Too many arguments."
+	msg -aqm1 "Received too many arguments."
 fi
 
 # Set the rootfs directory
 if [ -n "${1}" ]; then
 	ROOTFS_DIRECTORY="$(realpath "${1}")"
 	if [[ "${ROOTFS_DIRECTORY}" != "${TERMUX_FILES_DIR}"* ]]; then
-		msg -aqm1 "The supplied directory '${Y}${ROOTFS_DIRECTORY}${R}' is not within '${Y}${TERMUX_FILES_DIR}${R}'."
+		msg -aqm1 "The install directory '${Y}${ROOTFS_DIRECTORY}${R}' is not within '${Y}${TERMUX_FILES_DIR}${R}'."
 	fi
 else
 	ROOTFS_DIRECTORY="${DEFAULT_ROOTFS_DIR}"
@@ -1640,7 +1635,7 @@ fi
 # Uninstall rootfs
 if ${ACTION_UNINSTALL}; then
 	uninstall_rootfs
-	exit 0
+	exit
 fi
 
 # Pre install actions
