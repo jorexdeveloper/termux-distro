@@ -1,5 +1,20 @@
 <h1 align="center">TERMUX DISTRO</h1>
 
+<p align="center">
+	<a href="https://github.com/jorexdeveloper/termux-distro/stargazers">
+		<img
+			src="https://img.shields.io/github/stars/jorexdeveloper/termux-distro?colorA=23272a&colorB=007bff&style=for-the-badge">
+	</a>
+	<a href="https://github.com/jorexdeveloper/termux-distro/issues">
+		<img
+			src="https://img.shields.io/github/issues/jorexdeveloper/termux-distro?colorA=23272a&colorB=ff4500&style=for-the-badge">
+	</a>
+	<a href="https://github.com/jorexdeveloper/termux-distro/contributors">
+		<img
+			src="https://img.shields.io/github/contributors/jorexdeveloper/termux-distro?colorA=23272a&colorB=28a745&style=for-the-badge">
+	</a>
+</p>
+
 This is a repository containing general resources for installing different linux distributions in Termux.
 
 Check the detailed guide in each distribution's repository for information on how to install it.
