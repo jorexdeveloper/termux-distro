@@ -48,7 +48,7 @@ safety_check() {
 ################################################################################
 print_intro() {
 	msg -t "Hey there, I'm ${AUTHOR}."
-	msg "I am here to help you to ${action-install} ${DISTRO_NAME} in Termux."
+	msg "I am here to help you to ${action:-install} ${DISTRO_NAME} in Termux."
 }
 
 ################################################################################
@@ -263,7 +263,7 @@ create_rootfs_launcher() {
 		        optarg="\${optarg//=/}"
 		        if [ -z "\${optarg}" ]; then
 		            shift
-		            optarg="\${1-}"
+		            optarg="\${1}"
 		        fi
 		        if [ -z "\${optarg}" ]; then
 		            echo "Option '--command' requires an argument."
@@ -277,7 +277,7 @@ create_rootfs_launcher() {
 		        optarg="\${optarg//=/}"
 		        if [ -z "\${optarg}" ]; then
 		            shift
-		            optarg="\${1-}"
+		            optarg="\${1}"
 		        fi
 		        if [ -z "\${optarg}" ]; then
 		            echo "Option '--bind' requires an argument."
@@ -312,7 +312,7 @@ create_rootfs_launcher() {
 		        optarg="\${optarg//=/}"
 		        if [ -z "\${optarg}" ]; then
 		            shift
-		            optarg="\${1-}"
+		            optarg="\${1}"
 		        fi
 		        if [ -z "\${optarg}" ]; then
 		            echo "Option '--id' requires an argument."
@@ -326,7 +326,7 @@ create_rootfs_launcher() {
 		        optarg="\${optarg//=/}"
 		        if [ -z "\${optarg}" ]; then
 		            shift
-		            optarg="\${1-}"
+		            optarg="\${1}"
 		        fi
 		        if [ -z "\${optarg}" ]; then
 		            echo "Option '--kernel-release' requires an argument."
@@ -498,32 +498,32 @@ create_rootfs_launcher() {
 		launch_command+=" --bind=/sys"
 
 		# Fake /proc/loadavg if necessary
-		if ! cat /proc/loadavg &>/dev/null; then
+		if ! [ -r /proc/loadavg ]; then
 		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.loadavg:/proc/loadavg"
 		fi
 
 		# Fake /proc/stat if necessary
-		if ! cat /proc/stat &>/dev/null; then
+		if ! [ -r /proc/stat ]; then
 		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.stat:/proc/stat"
 		fi
 
 		# Fake /proc/uptime if necessary
-		if ! cat /proc/uptime &>/dev/null; then
+		if ! [ -r /proc/uptime ]; then
 		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.uptime:/proc/uptime"
 		fi
 
 		# Fake /proc/version if necessary
-		if ! cat /proc/version &>/dev/null; then
+		if ! [ -r /proc/version ]; then
 		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.version:/proc/version"
 		fi
 
 		# Fake /proc/vmstat if necessary
-		if ! cat /proc/vmstat &>/dev/null; then
+		if ! [ -r /proc/vmstat ]; then
 		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.vmstat:/proc/vmstat"
 		fi
 
 		# Fake /proc/sys/kernel/cap_last_cap if necessary
-		if ! cat /proc/sys/kernel/cap_last_cap &>/dev/null; then
+		if ! [ -r /proc/sys/kernel/cap_last_cap ]; then
 		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.sysctl_entry_cap_last_cap:/proc/sys/kernel/cap_last_cap"
 		fi
 
@@ -562,15 +562,15 @@ create_rootfs_launcher() {
 		    if [ -d "${TERMUX_FILES_DIR}/apps" ]; then
 		        launch_command+=" --bind=${TERMUX_FILES_DIR}/apps"
 		    fi
-		    if ls -U /storage &>/dev/null; then
+		    if [ -r /storage ]; then
 		        launch_command+=" --bind=/storage"
 		        launch_command+=" --bind=/storage/emulated/0:/sdcard"
 		    else
-		        if ls -U /storage/self/primary/ &>/dev/null; then
+		        if [ -r /storage/self/primary/ ]; then
 		            storage_path="/storage/self/primary"
-		        elif ls -U /storage/emulated/0/ &>/dev/null; then
+		        elif [ -r /storage/emulated/0/ ]; then
 		            storage_path="/storage/emulated/0"
-		        elif ls -U /sdcard/ &>/dev/null; then
+		        elif [ -r /sdcard/ ]; then
 		            storage_path="/sdcard"
 		        else
 		            storage_path=""
@@ -582,11 +582,15 @@ create_rootfs_launcher() {
 		        fi
 		        unset storage_path
 		    fi
+
+			if [ -n "\${EXTERNAL_STORAGE}" ]; then
+				launch_command+=" --bind=\${EXTERNAL_STORAGE}"
+			fi
 		fi
 
 		# Bind the tmp folder of the host system to the guest system (ignores --isolated)
 		if \${share_tmp_dir}; then
-		    launch_command+=" --bind=\${TMPDIR-${TERMUX_FILES_DIR}/usr/tmp}:/tmp"
+		    launch_command+=" --bind=\${TMPDIR:-${TERMUX_FILES_DIR}/usr/tmp}:/tmp"
 		fi
 
 		# Bind custom directories
@@ -598,7 +602,7 @@ create_rootfs_launcher() {
 		fi
 
 		# Setup the default environment
-		launch_command+=" /bin/env -i HOME=/root LANG=C.UTF-8 TERM=\${TERM-xterm-256color} PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/games:/usr/local/bin:/usr/local/sbin:/usr/local/games:/system/bin:/system/xbin"
+		launch_command+=" /bin/env -i HOME=/root LANG=C.UTF-8 TERM=\${TERM:-xterm-256color} PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/games:/usr/local/bin:/usr/local/sbin:/usr/local/games:/system/bin:/system/xbin"
 
 		# Kill all running pulseaudio servers
 		if [ -x "\$(command -v killall)" ]; then
@@ -652,7 +656,7 @@ create_vnc_launcher() {
 
 		clean_tmp() {
 		    if [ -n "\${DISPLAY}" ]; then
-		        rm -rf "\${TMPDIR-/tmp}/.X\${DISPLAY}-lock" "/tmp/.X11-unix/X\${DISPLAY}"
+		        rm -rf "\${TMPDIR:-/tmp}/.X\${DISPLAY}-lock" "/tmp/.X11-unix/X\${DISPLAY}"
 		    fi
 		}
 
@@ -665,8 +669,8 @@ create_vnc_launcher() {
 
 		start_session() {
 		    if [ -e "\${HOME}/.vnc/passwd" ] || [ -e "\${HOME}/.config/tigervnc/passwd" ]; then
-		        export HOME="\${HOME-/root}"
-		        export USER="\${USER-root}"
+		        export HOME="\${HOME:-/root}"
+		        export USER="\${USER:-root}"
 		        LD_PRELOAD="${LIB_GCC_PATH}"
 		        vncserver "\${DISPLAY}" -geometry "\${geometry}" -depth "\${DEPTH}" "\${@}"
 		    else
@@ -1186,7 +1190,7 @@ environment_variables_setup() {
 	cat >>"${env_file}" <<-EOF
 		# Environment variables
 		export PATH="${path}"
-		export TERM="${TERM-xterm-256color}"
+		export TERM="${TERM:-xterm-256color}"
 		if [ -z "\${LANG}" ]; then
 		    export LANG="en_US.UTF-8"
 		fi
@@ -1350,7 +1354,7 @@ distro_exec() {
 		"HOME=/root" \
 		"LANG=C.UTF-8" \
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-		"TERM=${TERM-xterm-256color}" \
+		"TERM=${TERM:-xterm-256color}" \
 		"TMPDIR=/tmp" \
 		"${@}"
 }
@@ -1606,7 +1610,7 @@ while [ "${#}" -gt 0 ]; do
 			optarg="${optarg//=/}"
 			if [ -z "${optarg}" ]; then
 				shift
-				optarg="${1-}"
+				optarg="${1}"
 			fi
 			case "${optarg}" in
 				on | off | always | never | auto)
