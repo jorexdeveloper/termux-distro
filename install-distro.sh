@@ -67,13 +67,13 @@ post_install_actions() {
 			#!/bin/bash
 			#############################
 			##          All            ##
-			export XDG_RUNTIME_DIR=/tmp/runtime-"\${USER-root}"
-			export SHELL="\${SHELL-/bin/sh}"
+			export XDG_RUNTIME_DIR=/tmp/runtime-"\${USER:-root}"
+			export SHELL="\${SHELL:-/bin/sh}"
 
 			unset SESSION_MANAGER
 			unset DBUS_SESSION_BUS_ADDRESS
 
-			xrdb "\${HOME-/tmp}"/.Xresources
+			xrdb "\${HOME:-/tmp}"/.Xresources
 
 			#############################
 			##          Gnome          ##

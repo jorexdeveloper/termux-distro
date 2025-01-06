@@ -258,145 +258,131 @@ create_rootfs_launcher() {
 		# Process command line arguments
 		while [ "\${#}" -gt 0 ]; do
 		    case "\${1}" in
-		    --command*)
-		        optarg="\${1//--command/}"
-		        optarg="\${optarg//=/}"
-		        if [ -z "\${optarg}" ]; then
-		            shift
-		            optarg="\${1}"
-		        fi
-		        if [ -z "\${optarg}" ]; then
-		            echo "Option '--command' requires an argument."
+		        --command*)
+		            optarg="\${1//--command/}"
+		            optarg="\${optarg//=/}"
+		            if [ -z "\${optarg}" ]; then
+		                shift
+		                optarg="\${1}"
+		            fi
+		            if [ -z "\${optarg}" ]; then
+		                echo "Option '--command' requires an argument."
+		                exit 1
+		            fi
+		            distro_command="\${optarg}"
+		            unset optarg
+		            ;;
+		        --bind*)
+		            optarg="\${1//--bind/}"
+		            optarg="\${optarg//=/}"
+		            if [ -z "\${optarg}" ]; then
+		                shift
+		                optarg="\${1}"
+		            fi
+		            if [ -z "\${optarg}" ]; then
+		                echo "Option '--bind' requires an argument."
+		                exit 1
+		            fi
+		            custom_bindings+=" --bind=\${optarg}"
+		            unset optarg
+		            ;;
+		        --share-tmp-dir)
+		            share_tmp_dir=true
+		            ;;
+		        --no-sysvipc)
+		            no_sysvipc=true
+		            ;;
+		        --no-link2symlink)
+		            no_link2symlink=true
+		            ;;
+		        --no-kill-on-exit)
+		            no_kill_on_exit=true
+		            ;;
+		        --isolated)
+		            isolated_env=true
+		            ;;
+		        --protect-ports)
+		            protect_ports=true
+		            ;;
+		        --use-termux-ids)
+		            use_termux_ids=true
+		            ;;
+		        --id*)
+		            optarg="\${1//--id/}"
+		            optarg="\${optarg//=/}"
+		            if [ -z "\${optarg}" ]; then
+		                shift
+		                optarg="\${1}"
+		            fi
+		            if [ -z "\${optarg}" ]; then
+		                echo "Option '--id' requires an argument."
+		                exit 1
+		            fi
+		            custom_ids="\${optarg}"
+		            unset optarg
+		            ;;
+		        --kernel-release*)
+		            optarg="\${1//--kernel-release/}"
+		            optarg="\${optarg//=/}"
+		            if [ -z "\${optarg}" ]; then
+		                shift
+		                optarg="\${1}"
+		            fi
+		            if [ -z "\${optarg}" ]; then
+		                echo "Option '--kernel-release' requires an argument."
+		                exit 1
+		            fi
+		            kernel_release="\${optarg}"
+		            unset optarg
+		            ;;
+		        -h | --help)
+		            echo "Usage: $(basename "${DISTRO_LAUNCHER}") [OPTION]... [USERNAME]"
+		            echo ""
+		            echo "Login or execute a comand in ${DISTRO_NAME} as USERNAME (default=${DEFAULT_LOGIN})."
+		            echo ""
+		            echo "Options:"
+		            echo "      --command[=COMMAND]    Execute COMAND in distro."
+		            echo "      --bind[=PATH]          Make the content of PATH accessible in the"
+		            echo "                             guest rootfs."
+		            echo "      --share-tmp-dir        Bind TMPDIR (${TERMUX_FILES_DIR}/usr/tmp"
+		            echo "                             if not set) to /tmp in the guest rootfs."
+		            echo "      --no-sysvipc           Do not handle System V IPC syscalls in proot"
+		            echo "                             (WARNING: use with caution)."
+		            echo "      --no-link2symlink      Do not fake hard links with symbolic links"
+		            echo "                             (WARNING: prevents hard link support in distro)."
+		            echo "      --no-kill-on-exit      Do not kill running processes on command exit."
+		            echo "      --isolated             Do not include host specific variables and"
+		            echo "                             directories."
+		            echo "      --protect-ports        Modify bindings to protected ports to use a"
+		            echo "                             higher port number."
+		            echo "      --use-termux-ids       Make the current user and group appear as that"
+		            echo "                             of termux. (ignores '--id')"
+		            echo "      --id[=UID:GID]         Make the current user and group appear as UID"
+		            echo "                             and GID."
+		            echo "      --kernel-release[=STRING]"
+		            echo "                             Make current kernel release appear as"
+		            echo "                             STRING. (default='${KERNEL_RELEASE}')"
+		            echo "  -v, --version              Print distro version and exit."
+		            echo "  -h, --help                 Print this information and exit."
+		            echo ""
+		            echo "Documentation: ${GITHUB}/${DISTRO_REPOSITORY}"
+		            exit
+		            ;;
+		        -v | --version)
+		            echo "${DISTRO_NAME} launcher, version ${VERSION_NAME}."
+		            echo "Copyright (C) 2023-2025 ${AUTHOR} <${GITHUB}>."
+		            echo "License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>."
+		            echo ""
+		            echo "This is free software, you are free to change and redistribute it."
+		            echo "There is NO WARRANTY, to the extent permitted by law."
+		            exit
+		            ;;
+		        -*)
+		            echo "Unrecognized argument/option '\${1}'."
+		            echo "Try '$(basename "${DISTRO_LAUNCHER}") --help' for more information"
 		            exit 1
-		        fi
-		        distro_command="\${optarg}"
-		        unset optarg
-		        ;;
-		    --bind*)
-		        optarg="\${1//--bind/}"
-		        optarg="\${optarg//=/}"
-		        if [ -z "\${optarg}" ]; then
-		            shift
-		            optarg="\${1}"
-		        fi
-		        if [ -z "\${optarg}" ]; then
-		            echo "Option '--bind' requires an argument."
-		            exit 1
-		        fi
-		        custom_bindings+=" --bind=\${optarg}"
-		        unset optarg
-		        ;;
-		    --share-tmp-dir)
-		        share_tmp_dir=true
-		        ;;
-		    --no-sysvipc)
-		        no_sysvipc=true
-		        ;;
-		    --no-link2symlink)
-		        no_link2symlink=true
-		        ;;
-		    --no-kill-on-exit)
-		        no_kill_on_exit=true
-		        ;;
-		    --isolated)
-		        isolated_env=true
-		        ;;
-		    --protect-ports)
-		        protect_ports=true
-		        ;;
-		    --use-termux-ids)
-		        use_termux_ids=true
-		        ;;
-		    --id*)
-		        optarg="\${1//--id/}"
-		        optarg="\${optarg//=/}"
-		        if [ -z "\${optarg}" ]; then
-		            shift
-		            optarg="\${1}"
-		        fi
-		        if [ -z "\${optarg}" ]; then
-		            echo "Option '--id' requires an argument."
-		            exit 1
-		        fi
-		        custom_ids="\${optarg}"
-		        unset optarg
-		        ;;
-		    --kernel-release*)
-		        optarg="\${1//--kernel-release/}"
-		        optarg="\${optarg//=/}"
-		        if [ -z "\${optarg}" ]; then
-		            shift
-		            optarg="\${1}"
-		        fi
-		        if [ -z "\${optarg}" ]; then
-		            echo "Option '--kernel-release' requires an argument."
-		            exit 1
-		        fi
-		        kernel_release="\${optarg}"
-		        unset optarg
-		        ;;
-		    -h | --help)
-		        echo "Usage: $(basename "${DISTRO_LAUNCHER}") [OPTION]... [USERNAME]"
-		        echo ""
-		        echo "Login as user USERNAME or execute a comand in ${DISTRO_NAME}."
-		        echo "(prompts for USERNAME if not supplied)"
-		        echo ""
-		        echo "Options:"
-		        echo "    --command[=COMMAND]"
-		        echo "            Execute COMMAND in distro."
-		        echo "            (default='login')"
-		        echo "    --bind[=PATH]"
-		        echo "            Make the content of PATH accessible in the guest rootfs."
-		        echo "    --share-tmp-dir"
-		        echo "            Bind TMPDIR (${TERMUX_FILES_DIR}/usr/tmp if unset)"
-		        echo "            to /tmp in the guest rootfs."
-		        echo "    --no-sysvipc"
-		        echo "            Do not handle System V IPC syscalls in proot."
-		        echo "            (WARNING: use with caution)"
-		        echo "    --no-link2symlink"
-		        echo "            Do not fake hard links with symbolic links."
-		        echo "            (WARNING: prevents hard link support)"
-		        echo "    --no-kill-on-exit"
-		        echo "            Do not kill running processes on command exit."
-		        echo "            (WARNING: use with caution)"
-		        echo "    --isolated"
-		        echo "            Do not include host specific variables and directories."
-		        echo "    --protect-ports"
-		        echo "            Modify bindings to protected ports to use a higher port"
-		        echo "            number."
-		        echo "    --use-termux-ids"
-		        echo "            Make the current user and group appear as that of termux."
-		        echo "            (ignores '--id')"
-		        echo "    --id[=UID:GID]"
-		        echo "            Make the current user and group appear as UID and GID."
-		        echo "    --kernel-release[=STRING]"
-		        echo "            Make current kernel release appear as STRING."
-		        echo "            (default='${KERNEL_RELEASE}')"
-		        echo "    -h, --help"
-		        echo "            Print this information and exit."
-		        echo "    -v, --version"
-		        echo "            Print distro version and exit."
-		        echo ""
-		        echo "Documentation: ${GITHUB}/${DISTRO_REPOSITORY}"
-		        echo ""
-		        echo "Also see proot(1)"
-		        exit
-		        ;;
-		    -v | --version)
-		        echo "${DISTRO_NAME} launcher, version ${VERSION_NAME}."
-		        echo "Copyright (C) 2023-2025 ${AUTHOR} <${GITHUB}>."
-		        echo "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>."
-		        echo ""
-		        echo "This is free software, you are free to change and redistribute it."
-		        echo "There is NO WARRANTY, to the extent permitted by law."
-		        exit
-		        ;;
-		    -*)
-		        echo "Unrecognized argument/option '\${1}'."
-		        echo "Try '$(basename "${DISTRO_LAUNCHER}") --help' for more information"
-		        exit 1
-		        ;;
-		    *) login_name="\${1}" ;;
+		            ;;
+		        *) login_name="\${1}" ;;
 		    esac
 		    shift
 		done
@@ -404,8 +390,8 @@ create_rootfs_launcher() {
 		# Prevent running as root
 		if [ "\${EUID}" = "0" ] || [ "\$(id -u)" = "0" ]; then
 		    echo "Nope, I can't let you start ${DISTRO_NAME} with root permissions!"
-			echo "This can cause several issues and potentially damage your phone."
-			exit 1
+		    echo "This can cause several issues and potentially damage your phone."
+		    exit 1
 		fi
 
 		# Prevent running within a chroot environment
@@ -414,23 +400,23 @@ create_rootfs_launcher() {
 		    name="\$(grep Name "/proc/\${pid}/status" | cut -d \$'\t' -f 2)"
 		    if [ "\$name" = "proot" ]; then
 		        echo "Nope, I can't let you start ${DISTRO_NAME} within a chroot environment!"
-				echo "This can cause performance and other issues."
-				exit 1
+		        echo "This can cause performance and other issues."
+		        exit 1
 		    fi
 		fi
 		unset pid name
 
 		# Check for login command
 		if [ -z "\${distro_command}" ]; then
-			# Prefer su as login command
+		    # Prefer su as login command
 		    if [ -x "${ROOTFS_DIRECTORY}/bin/su" ]; then
-			    distro_command="su --login \${login_name}"
-			elif [ -x "${ROOTFS_DIRECTORY}/bin/login" ]; then
+		        distro_command="su --login \${login_name}"
+		    elif [ -x "${ROOTFS_DIRECTORY}/bin/login" ]; then
 		        distro_command="login \${login_name}"
 		    else
 		        echo "Couldn't find any login command in the guest rootfs."
 		        echo "Use '$(basename "${DISTRO_LAUNCHER}") --command[=COMMAND]'."
-				echo "See '$(basename "${DISTRO_LAUNCHER}") --help' for more information."
+		        echo "See '$(basename "${DISTRO_LAUNCHER}") --help' for more information."
 		        exit 1
 		    fi
 		fi
@@ -583,9 +569,9 @@ create_rootfs_launcher() {
 		        unset storage_path
 		    fi
 
-			if [ -n "\${EXTERNAL_STORAGE}" ]; then
-				launch_command+=" --bind=\${EXTERNAL_STORAGE}"
-			fi
+		    if [ -n "\${EXTERNAL_STORAGE}" ]; then
+		        launch_command+=" --bind=\${EXTERNAL_STORAGE}"
+		    fi
 		fi
 
 		# Bind the tmp folder of the host system to the guest system (ignores --isolated)
@@ -606,7 +592,7 @@ create_rootfs_launcher() {
 
 		# Kill all running pulseaudio servers
 		if [ -x "\$(command -v killall)" ]; then
-			killall -qw -9 pulseaudio || true
+		    killall -qw -9 pulseaudio || true
 		fi
 
 		# Enable audio support in distro (for root users, add option '--system')
@@ -687,21 +673,16 @@ create_vnc_launcher() {
 		}
 
 		print_usage() {
-		    echo "Usage \$(basename "\${0}") [option]."
+		    echo "Usage \$(basename "\${0}") [<command>]."
 		    echo ""
 		    echo "Start vnc session."
 		    echo ""
-		    echo "Options:"
-		    echo "   p, potrait"
-		    echo "         Use potrait (\${WIDTH}x\${HEIGHT}) orientation."
-		    echo "   l, landscape"
-		    echo "         Use landscape (\${HEIGHT}x\${WIDTH}) orientation. (default)"
-		    echo "   s, status"
-		    echo "         List active vnc sessions."
-		    echo "   k, kill"
-		    echo "         Kill vnc session."
-		    echo "   h, help"
-		    echo "          Print this message and exit."
+		    echo "Commands include:"
+		    echo "  kill             Kill vnc session."
+		    echo "  status           List active vnc sessions."
+		    echo "  landscape        Use landscape (\${HEIGHT}x\${WIDTH}) orientation. (default)"
+		    echo "  potrait          Use potrait (\${WIDTH}x\${HEIGHT}) orientation."
+		    echo "  help             Print this message and exit."
 		    echo ""
 		    echo "Extra options are parsed to the installed vnc server, see vncserver(1)."
 		}
@@ -714,11 +695,6 @@ create_vnc_launcher() {
 		WIDTH=1440
 		HEIGHT=720
 		ORIENTATION="l"
-
-		if ! { [ -x "\$(command -v vncserver)" ] && [ -x "\$(command -v vncpasswd)" ]; }; then
-		    echo "No vnc server found."
-		    exit 1
-		fi
 
 		opts=()
 		while [ "\${#}" -gt 0 ]; do
@@ -743,6 +719,11 @@ create_vnc_launcher() {
 		    esac
 		    shift
 		done
+
+		if ! { [ -x "\$(command -v vncserver)" ] && [ -x "\$(command -v vncpasswd)" ]; }; then
+		    echo "No vnc server found."
+		    exit 1
+		fi
 
 		case "\${action}" in
 		    k) kill_session "\${opts[@]}" ;;
@@ -900,7 +881,7 @@ uninstall_rootfs() {
 print_version() {
 	msg -a "${DISTRO_NAME} installer, version ${Y}${VERSION_NAME}${C}."
 	msg -a "Copyright (C) 2023-2025 ${AUTHOR} <${B}${U}${GITHUB}${L}${C}>."
-	msg -a "License GPLv3+: GNU GPL version 3 or later <${B}${U}http://gnu.org/licenses/gpl.html${L}${C}>."
+	msg -a "License GPLv3+: GNU GPL version 3 or later <${B}${U}https://gnu.org/licenses/gpl.html${L}${C}>."
 	msg -aN "This is free software, you are free to change and redistribute it."
 	msg -a "There is NO WARRANTY, to the extent permitted by law."
 }
@@ -909,29 +890,22 @@ print_version() {
 # Prints the program usage information                                         #
 ################################################################################
 print_usage() {
-	msg -a "Usage: ${Y}${PROGRAM_NAME}${C} [OPTION]... [<install-directory>]"
-	msg -aN "Install ${DISTRO_NAME} in <install-directory>."
+	msg -a "Usage: ${Y}${PROGRAM_NAME}${C} [OPTION]... [DIRECTORY]"
+	msg -aN "Install ${DISTRO_NAME} in DIRECTORY."
 	msg -a "(default='${Y}${DEFAULT_ROOTFS_DIR}${C}')"
 	msg -aN "Options:"
-	msg -- "-d, --directory[=<path>]"
-	msg "        Change directory to <path> before execution."
-	msg -- "--install-only"
-	msg "        Only perform the installation. (Do not configure)."
-	msg -- "--config-only"
-	msg "        Make only required configurations (Do not install)."
-	msg -- "-u, --uninstall"
-	msg "        Uninstall ${DISTRO_NAME}."
-	msg -- "-l, --log"
-	msg "        Create log file (${Y}${PROGRAM_NAME%.sh}.log${C})"
-	msg -- "-h, --help"
-	msg "        Print this information and exit."
-	msg -- "-v, --version"
-	msg "        Print program version and exit."
-	msg -- "--color[=<when>]"
-	msg "        Enable/Disable color output if supported (default='${Y}on${C}'). Valid"
-	msg "        arguments are: [always|on] or [never|off]"
-	msg -aN "The install path (<install-directory>) must be within '${Y}${TERMUX_FILES_DIR}${C}'"
-	msg -a "(or its sub-directories) to prevent file permission issues."
+	msg -a "  -d, --directory[=PATH]     Change directory to PATH before execution."
+	msg -a "      --install-only         Installation only (use with caution)."
+	msg -a "      --config-only          Configurations only (if already installed)."
+	msg -a "  -u, --uninstall            Uninstall ${DISTRO_NAME}."
+	msg -a "      --color[=WHEN]         Enable/Disable color output if supported"
+	msg -a "                             (default='${Y}on${C}'). Valid arguments are:"
+	msg -a "                             [always|on] or [never|off]"
+	msg -a "  -v, --version              Print program version and exit."
+	msg -a "  -h, --help                 Print this information and exit."
+	msg -a "  -l, --log                  Create log file (${Y}${PROGRAM_NAME%.sh}.log${C})."
+	msg -aN "The install directory must be within '${Y}${TERMUX_FILES_DIR}${C}'"
+	msg -a "(or its sub-directories) to prevent permission issues."
 	msg -aN "Documentation: ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
 
@@ -1299,10 +1273,12 @@ settings_configurations() {
 		chmod +s "${dir}/su"
 	fi
 	status+="-${?}"
-	local resol_conf="${ROOTFS_DIRECTORY}/etc/resolv.conf"
-	chmod 777 -R "${resol_conf}" && rm -f "${resol_conf}"
-	if touch "${resol_conf}" && chmod +w "${resol_conf}"; then
-		cat >"${resol_conf}" <<-EOF
+	local resolv_conf="${ROOTFS_DIRECTORY}/etc/resolv.conf"
+	chmod 777 -R "${resolv_conf}" && rm -f "${resolv_conf}"
+	if [ -n "${PREFIX}" ] && [ -f "${PREFIX}/etc/resolv.conf" ]; then
+		cp "${PREFIX}/etc/resolv.conf" "${resolv_conf}"
+	elif touch "${resolv_conf}" && chmod +w "${resolv_conf}"; then
+		cat >"${resolv_conf}" <<-EOF
 			nameserver 8.8.8.8
 			nameserver 8.8.4.4
 		EOF
@@ -1556,7 +1532,7 @@ COLOR_SUPPORT=always
 # Update color variables
 set_colors
 
-# Set umask
+# Permissions for new files
 umask 0022
 
 # Main actions
@@ -1579,7 +1555,7 @@ while [ "${#}" -gt 0 ]; do
 				msg -aqm1 "Option '--directory' requires an argument."
 			fi
 			if [ -d "${optarg}" ] && [ -r "${optarg}" ]; then
-				cd "${optarg}"
+				cd "${optarg}" || exit 1
 			else
 				msg -aq "'${optarg}' is not a readable directory!"
 			fi
@@ -1613,7 +1589,7 @@ while [ "${#}" -gt 0 ]; do
 				optarg="${1}"
 			fi
 			case "${optarg}" in
-				on | off | always | never | auto)
+				on | off | always | never)
 					COLOR_SUPPORT="${optarg}"
 					set_colors
 					;;
