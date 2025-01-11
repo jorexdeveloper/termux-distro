@@ -230,7 +230,7 @@ extract_rootfs_archive() {
 create_rootfs_launcher() {
 	msg -t "Lemme create a command to launch ${DISTRO_NAME}."
 	mkdir -p "$(dirname "${DISTRO_LAUNCHER}")" &>>"${LOG_FILE}" && cat >"${DISTRO_LAUNCHER}" 2>>"${LOG_FILE}" <<-EOF
-		#!${TERMUX_FILES_DIR}/usr/bin/bash -e
+		#!${TERMUX_FILES_DIR}/usr/bin/bash
 
 		################################################################################
 		#                                                                              #
@@ -615,7 +615,7 @@ create_vnc_launcher() {
 	msg -t "Lemme create a vnc wrapper in ${DISTRO_NAME}."
 	local vnc_launcher="${ROOTFS_DIRECTORY}/usr/local/bin/vnc"
 	mkdir -p "${ROOTFS_DIRECTORY}/usr/local/bin" &>>"${LOG_FILE}" && cat >"${vnc_launcher}" 2>>"${LOG_FILE}" <<-EOF
-		#!/bin/bash -e
+		#!/bin/bash
 
 		################################################################################
 		#                                                                              #
