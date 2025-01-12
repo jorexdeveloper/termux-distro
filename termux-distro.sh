@@ -22,6 +22,7 @@
 #     along with this program.  If not, see <https://www.gnu.org/licenses/>.   #
 #                                                                              #
 ################################################################################
+# shellcheck disable=SC2155
 
 ################################################################################
 # Prevents running this program in the wrong environment.                      #
@@ -141,7 +142,8 @@ check_rootfs_directory() {
 			fi
 		fi
 		msg "Okay, deleting '${Y}${ROOTFS_DIRECTORY}${C}'!"
-		if chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}" && rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
+		chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
+		if rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
 			msg -s "Done, let's proceed."
 		else
 			msg -q "Sorry, have I failed to delete '${Y}${ROOTFS_DIRECTORY}${R}'."
@@ -171,7 +173,8 @@ download_rootfs_archive() {
 				fi
 			fi
 			msg "Okay, deleting '${Y}${ARCHIVE_NAME}${C}'."
-			if chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}" && rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
+			chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}"
+			if rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
 				msg -s "Done, let's proceed."
 			else
 				msg -q "Sorry, have I failed to delete '${Y}${ARCHIVE_NAME}${R}'."
@@ -183,7 +186,8 @@ download_rootfs_archive() {
 			mv "${tmp_dload}" "${ARCHIVE_NAME}" &>>"${LOG_FILE}"
 			msg -s "Great, the rootfs download is complete!"
 		else
-			chmod 777 -R "${tmp_dload}" &>>"${LOG_FILE}" && rm -rf "${tmp_dload}" &>>"${LOG_FILE}"
+			chmod 777 -R "${tmp_dload}" &>>"${LOG_FILE}"
+			rm -rf "${tmp_dload}" &>>"${LOG_FILE}"
 			msg -qm0 "Sorry, have I failed to download the rootfs archive."
 		fi
 	fi
@@ -210,13 +214,14 @@ verify_rootfs_archive() {
 extract_rootfs_archive() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
 		msg -t "Now, grab a coffee while I extract the rootfs archive. This will take a while."
-		trap "msg -e \"Extraction process interupted. Clearing cache.                 \";echo -ne \"${N}${V}\";chmod 777 -R \"${ROOTFS_DIRECTORY}\" &>>\"${LOG_FILE}\";rm -rf \"${ROOTFS_DIRECTORY}\" &>>\"${LOG_FILE}\";exit 1" HUP INT TERM
+		trap 'msg -e "Extraction process interupted. Clearing cache.                 "; echo -ne "${N}${V}"; chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; exit 1' HUP INT TERM
 		mkdir -p "${ROOTFS_DIRECTORY}"
 		set +e
 		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --auto-compress --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far.%*\r${N}${V}" &>>"${LOG_FILE}"; then
 			msg -s "Finally, I am done extracting the rootfs archive!."
 		else
-			chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}" && rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
+			chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
+			rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
 			msg -q "Sorry, have I failed to extract the rootfs archive."
 		fi
 		set -e
@@ -764,7 +769,8 @@ set_user_shell() {
 			ask -n -- -t "Do you want to change the default login shell from '${Y}${default_shell}${C}'?"
 		fi
 	}; then
-		local shells=($(grep '^/bin' "${ROOTFS_DIRECTORY}"/etc/shells 2>>"${LOG_FILE}" | cut -d'/' -f3 2>>"${LOG_FILE}"))
+		local shells
+		mapfile -t shells < <(grep '^/bin' "${ROOTFS_DIRECTORY}"/etc/shells 2>>"${LOG_FILE}" | cut -d'/' -f3 2>>"${LOG_FILE}")
 		msg "Installed shells: ${Y}${shells[*]}${C}"
 		msg -n "Enter shell name:"
 		[ "${default_shell}" = "unknown" ] && default_shell="${shells[0]}"
@@ -816,7 +822,8 @@ clean_up() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ] && [ -z "${KEEP_ROOTFS_ARCHIVE}" ] && [ -f "${ARCHIVE_NAME}" ]; then
 		if ask -n -- -t "Can I remove the downloaded the rootfs archive to save space?"; then
 			msg "Okay, removing '!{Y}${ARCHIVE_NAME}${C}'"
-			if chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}" && rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
+			chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}"
+			if rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
 				msg -s "Done, the rootfs archive is gone!"
 			else
 				msg -e "Sorry, have I failed to remove the rootfs archive."
@@ -855,10 +862,12 @@ uninstall_rootfs() {
 		msg -ae "This action will delete all files (including valuable ones if any) in this directory!"
 		if ask -n0 -- -a "Confirm action."; then
 			msg -a "Uninstalling ${DISTRO_NAME}, just a sec."
-			if chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}" && rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
+			chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
+			if rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
 				msg -as "Done, ${DISTRO_NAME} uninstalled successfully!"
 				msg -a "Removing commands."
-				if chmod 777 -R "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}" && rm -rf "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}"; then
+				chmod 777 -R "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}"
+				if rm -rf "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}"; then
 					msg -as "Done, commands removed successfully!"
 				else
 					msg -ae "Sorry, have I failed to remove:"
@@ -1274,7 +1283,8 @@ settings_configurations() {
 	fi
 	status+="-${?}"
 	local resolv_conf="${ROOTFS_DIRECTORY}/etc/resolv.conf"
-	chmod 777 -R "${resolv_conf}" && rm -f "${resolv_conf}"
+	chmod 777 -R "${resolv_conf}"
+	rm -f "${resolv_conf}"
 	if [ -n "${PREFIX}" ] && [ -f "${PREFIX}/etc/resolv.conf" ]; then
 		cp "${PREFIX}/etc/resolv.conf" "${resolv_conf}"
 	elif touch "${resolv_conf}" && chmod +w "${resolv_conf}"; then
