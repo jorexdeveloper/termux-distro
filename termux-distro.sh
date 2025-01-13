@@ -1167,31 +1167,31 @@ environment_variables_setup() {
 	local env_file="${ROOTFS_DIRECTORY}/etc/environment"
 	local status=""
 	local path="/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games:/system/bin:/system/xbin:${TERMUX_FILES_DIR}/usr/local/bin:${TERMUX_FILES_DIR}/usr/bin"
-	sed -i "/^### start\s${marker}\s###$/,/^###\send\s${marker}\s###$/d" "${env_file}"
-	sed -i "/^$/d" "${env_file}"
-	echo -e "\n### start ${marker} ###\n" >>"${env_file}"
-	cat >>"${env_file}" <<-EOF
-		# Environment variables
-		export PATH="${path}"
-		export TERM="${TERM:-xterm-256color}"
-		if [ -z "\${LANG}" ]; then
-		    export LANG="en_US.UTF-8"
-		fi
+	sed -i "/^### start\s${marker}\s###$/,/^###\send\s${marker}\s###$/d; /^$/d" "${env_file}"
+	{
+		echo -e "\n### start ${marker} ###"
+		echo -e "# These variables were added by ${PROGRAM_NAME} during"
+		echo -e "# the rootfs installation/configuration and are updated"
+		echo -e "# automatically every time ${PROGRAM_NAME} is executed.\n"
+		cat >>"${env_file}" <<-EOF
+			# Environment variables
+			export PATH="${path}"
+			export TERM="${TERM:-xterm-256color}"
+			if [ -z "\${LANG}" ]; then
+			    export LANG="en_US.UTF-8"
+			fi
 
-		# pulseaudio server
-		export PULSE_SERVER=127.0.0.1
+			# pulseaudio server
+			export PULSE_SERVER=127.0.0.1
 
-		# Display (for vnc)
-		if [ "\${EUID}" -eq 0 ] || [ "\$(id -u)" -eq 0 ] || [ "\$(whoami)" = "root" ]; then
-		    export DISPLAY=:0
-		else
-		    export DISPLAY=:1
-		fi
+			# vncserver display
+			export DISPLAY=:0
 
-		# Misc variables
-		export MOZ_FAKE_NO_SANDBOX=1
-		export TMPDIR="/tmp"
-	EOF
+			# Misc variables
+			export MOZ_FAKE_NO_SANDBOX=1
+			export TMPDIR="/tmp"
+		EOF
+	} >>"${env_file}"
 	status+="-${?}"
 	local java_home
 	if [[ "${SYS_ARCH}" == "armhf" ]]; then
