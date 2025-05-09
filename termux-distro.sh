@@ -1027,7 +1027,7 @@ complete_msg() {
 	msg -t "I also think you might need a short form for '${Y}$(basename "${DISTRO_LAUNCHER}")${C}'."
 	msg "So have I created '${Y}$(basename "${DISTRO_SHORTCUT}")${C}' which is shorter."
 	msg -t "If you have further inquiries, read the documentation at:"
-	msg "${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
+	msg " ⇒ ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
 
 ################################################################################
@@ -1568,7 +1568,7 @@ msg() {
 	while getopts ":tseanNqm:l" opt; do
 		case "${opt}" in
 			t)
-				prefix="\n${Y}>> "
+				prefix="\n${Y}⇒ "
 				continue
 				;;
 			s)
