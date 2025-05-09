@@ -2,24 +2,24 @@
 
 ################################################################################
 #                                                                              #
-#     Termux Distro Template.                                                  #
+# Termux Distro Template.                                                      #
 #                                                                              #
-#     Template for installing Linux Distro in Termux.                          #
+# Template for installing Linux Distro in Termux.                              #
 #                                                                              #
-#     Copyright (C) 2023-2025  Jore <https://github.com/jorexdeveloper>        #
+# Copyright (C) 2023-2025 Jore <https://github.com/jorexdeveloper>             #
 #                                                                              #
-#     This program is free software: you can redistribute it and/or modify     #
-#     it under the terms of the GNU General Public License as published by     #
-#     the Free Software Foundation, either version 3 of the License, or        #
-#     (at your option) any later version.                                      #
+# This program is free software: you can redistribute it and/or modify         #
+# it under the terms of the GNU General Public License as published by         #
+# the Free Software Foundation, either version 3 of the License, or            #
+# (at your option) any later version.                                          #
 #                                                                              #
-#     This program is distributed in the hope that it will be useful,          #
-#     but WITHOUT ANY WARRANTY; without even the implied warranty of           #
-#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
-#     GNU General Public License for more details.                             #
+# This program is distributed in the hope that it will be useful,              #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of               #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                #
+# GNU General Public License for more details.                                 #
 #                                                                              #
-#     You should have received a copy of the GNU General Public License        #
-#     along with this program.  If not, see <https://www.gnu.org/licenses/>.   #
+# You should have received a copy of the GNU General Public License            #
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.       #
 #                                                                              #
 ################################################################################
 # shellcheck disable=SC2155
@@ -29,17 +29,12 @@
 ################################################################################
 safety_check() {
 	if [ "${EUID}" = "0" ] || [ "$(id -u)" = "0" ]; then
-		msg -ae "Nope, I can't let you run this program with root permissions!"
-		msg -an "The least of your problems will be damaging system files."
-		msg -aq ""
+		msg -aq "I can't let you run this program with root permissions! This can cause several issues and potentially damage your phone."
 	fi
 	local pid="$(grep TracerPid "/proc/$$/status" | cut -d $'\t' -f 2)"
 	if [ "${pid}" != 0 ]; then
-		local name="$(grep Name "/proc/${pid}/status" | cut -d $'\t' -f 2)"
-		if [ "$name" = "proot" ]; then
-			msg -ae "Nope, I can't let you run this program within proot!"
-			msg -an "The least of your problems will be a very slow environment."
-			msg -aq ""
+		if [ "$(grep Name "/proc/${pid}/status" | cut -d $'\t' -f 2)" = "proot" ]; then
+			msg -aq "I can't let you run this program within proot! This can lead to performance degradation and other issues."
 		fi
 	fi
 }
@@ -48,7 +43,7 @@ safety_check() {
 # Prints the distro an introducing message.                                    #
 ################################################################################
 print_intro() {
-	msg -t "Hey there, I'm ${AUTHOR}."
+	msg -t "Hi, I'm ${AUTHOR}."
 	msg "I am here to help you to ${action:-install} ${DISTRO_NAME} in Termux."
 }
 
@@ -86,7 +81,7 @@ check_arch() {
 ################################################################################
 check_pkgs() {
 	msg -t "Now lemme make sure that all your packages are up to date."
-	if [ -x "$(command -v pkg)" ] && pkg update -y < <(echo -e "y\ny\ny\ny\ny") &>>"${LOG_FILE}" && pkg upgrade -y < <(echo -e "y\ny\ny\ny\ny") &>>"${LOG_FILE}"; then # || apt-get -qq -o=Dpkg::Use-Pty=0 update -y &>>"${LOG_FILE}" || apt-get -qq -o=Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" dist-upgrade -y &>>"${LOG_FILE}"; then
+	if [ -x "$(command -v pkg)" ] && pkg update -y < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1 && pkg upgrade -y < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1; then # || apt-get -qq -o=Dpkg::Use-Pty=0 update -y >>"${LOG_FILE}" 2>&1 || apt-get -qq -o=Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" dist-upgrade -y >>"${LOG_FILE}" 2>&1; then
 		msg -s "Yup, Everything looks good!"
 	else
 		msg -qm0 "Sorry, have I failed to update your packages."
@@ -95,7 +90,7 @@ check_pkgs() {
 	for package in awk basename curl du proot pulseaudio readlink realpath sed tar unzip xz; do
 		if ! [ -x "$(command -v "${package}")" ]; then
 			msg "Oops, looks like '${Y}${package}${C}' is missing! Let me install it now."
-			if pkg install -y "${package}" < <(echo -e "y\ny\ny\ny\ny") &>>"${LOG_FILE}"; then # || apt-get -qq -o=Dpkg::Use-Pty=0 install -y "${package}" &>>"${LOG_FILE}"; then
+			if pkg install -y "${package}" < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1; then # || apt-get -qq -o=Dpkg::Use-Pty=0 install -y "${package}" >>"${LOG_FILE}" 2>&1; then
 				msg -s "Done, '${Y}${package}${G}' is now installed!"
 			else
 				msg -qm0 "Sorry, have I failed to install '${Y}${package}${R}'."
@@ -132,7 +127,7 @@ check_rootfs_directory() {
 				esac
 				unset reply
 			else
-				rmdir "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
+				rmdir "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1
 				return
 			fi
 		else
@@ -142,8 +137,7 @@ check_rootfs_directory() {
 			fi
 		fi
 		msg "Okay, deleting '${Y}${ROOTFS_DIRECTORY}${C}'!"
-		chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
-		if rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
+		if remove "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1; then
 			msg -s "Done, let's proceed."
 		else
 			msg -q "Sorry, have I failed to delete '${Y}${ROOTFS_DIRECTORY}${R}'."
@@ -173,8 +167,7 @@ download_rootfs_archive() {
 				fi
 			fi
 			msg "Okay, deleting '${Y}${ARCHIVE_NAME}${C}'."
-			chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}"
-			if rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
+			if remove "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1; then
 				msg -s "Done, let's proceed."
 			else
 				msg -q "Sorry, have I failed to delete '${Y}${ARCHIVE_NAME}${R}'."
@@ -183,11 +176,10 @@ download_rootfs_archive() {
 		local tmp_dload="${ARCHIVE_NAME}.pending"
 		msg -t "Alright, now lemme download the rootfs archive. This might take a while."
 		if curl --disable --fail --location --progress-meter --retry-connrefused --retry 0 --retry-delay 3 --continue-at - --output "${tmp_dload}" "${BASE_URL}/${ARCHIVE_NAME}"; then
-			mv "${tmp_dload}" "${ARCHIVE_NAME}" &>>"${LOG_FILE}"
+			mv "${tmp_dload}" "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1
 			msg -s "Great, the rootfs download is complete!"
 		else
-			chmod 777 -R "${tmp_dload}" &>>"${LOG_FILE}"
-			rm -rf "${tmp_dload}" &>>"${LOG_FILE}"
+			remove "${tmp_dload}" >>"${LOG_FILE}" 2>&1
 			msg -qm0 "Sorry, have I failed to download the rootfs archive."
 		fi
 	fi
@@ -199,7 +191,7 @@ download_rootfs_archive() {
 verify_rootfs_archive() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
 		msg -t "Give me a sec to make sure the rootfs archive is ok."
-		if grep --regexp="${ARCHIVE_NAME}$" <<<"${TRUSTED_SHASUMS}" 2>>"${LOG_FILE}" | "${SHASUM_CMD}" --quiet --check &>>"${LOG_FILE}"; then
+		if grep --regexp="${ARCHIVE_NAME}$" <<<"${TRUSTED_SHASUMS}" 2>>"${LOG_FILE}" | "${SHASUM_CMD}" --quiet --check >>"${LOG_FILE}" 2>&1; then
 			msg -s "Yup, the rootfs archive looks fine!"
 			return
 		else
@@ -214,17 +206,15 @@ verify_rootfs_archive() {
 extract_rootfs_archive() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
 		msg -t "Now, grab a coffee while I extract the rootfs archive. This will take a while."
-		trap 'msg -e "Extraction process interupted. Clearing cache.                 "; echo -ne "${N}${V}"; chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; exit 1' HUP INT TERM
+		# shellcheck disable=SC2154
+		trap 'e=${?}; msg -e "Extraction process interupted. Clearing cache.                 "; echo -ne "${N}${V}"; remove "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1; exit ${e}' HUP INT TERM
 		mkdir -p "${ROOTFS_DIRECTORY}"
-		set +e
-		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --auto-compress --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far.%*\r${N}${V}" &>>"${LOG_FILE}"; then
+		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --auto-compress --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far.%*\r${N}${V}" >>"${LOG_FILE}" 2>&1; then
 			msg -s "Finally, I am done extracting the rootfs archive!."
 		else
-			chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
-			rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
+			remove "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
 			msg -q "Sorry, have I failed to extract the rootfs archive."
 		fi
-		set -e
 		trap - HUP INT TERM
 	fi
 }
@@ -234,87 +224,96 @@ extract_rootfs_archive() {
 ################################################################################
 create_rootfs_launcher() {
 	msg -t "Lemme create a command to launch ${DISTRO_NAME}."
-	mkdir -p "$(dirname "${DISTRO_LAUNCHER}")" &>>"${LOG_FILE}" && cat >"${DISTRO_LAUNCHER}" 2>>"${LOG_FILE}" <<-EOF
+	mkdir -p "$(dirname "${DISTRO_LAUNCHER}")" >>"${LOG_FILE}" 2>&1 && cat >"${DISTRO_LAUNCHER}" 2>>"${LOG_FILE}" <<-EOF
 		#!${TERMUX_FILES_DIR}/usr/bin/bash
 
 		################################################################################
 		#                                                                              #
-		#     ${DISTRO_NAME} launcher, version ${VERSION_NAME}                         #
+		# $(
+			text="${DISTRO_NAME} Launcher version ${VERSION_NAME}"
+			echo -n "${text}"
+			len=$((76 - ${#text}))
+			while ((len > 0)); do
+				echo -n ' '
+				((len--))
+			done
+		) #
 		#                                                                              #
-		#     Launches ${DISTRO_NAME}.                                                 #
+		# License GPLv3+: GNU GPL version 3 or later                                   #
+		# <https://gnu.org/licenses/gpl.html>                                          #
 		#                                                                              #
-		#     Copyright (C) 2023-2025  ${AUTHOR} <${GITHUB}>        #
+		# This is free software, you are free to change and redistribute it.           #
+		# There is NO WARRANTY, to the extent permitted by law.                        #
 		#                                                                              #
 		################################################################################
 
+		unset LD_PRELOAD
+		program_name="$(basename "${DISTRO_LAUNCHER}")"
+
+		working_dir=""
+		home_dir=""
+		env_vars=(
+		    "LANG=C.UTF-8"
+		    "TERM=\${TERM:-xterm-256color}"
+		    "PATH=${DEFAULT_PATH}:${TERMUX_FILES_DIR}/usr/local/bin:${TERMUX_FILES_DIR}/usr/bin"
+		)
 		custom_ids=""
-		login_name="${DEFAULT_LOGIN}"
-		distro_command=""
-		custom_bindings=""
-		share_tmp_dir=false
-		no_sysvipc=false
+		isolated_env=false
+		custom_bindings=()
+		share_tmp=false
 		no_kill_on_exit=false
 		no_link2symlink=false
-		isolated_env=false
-		protect_ports=false
-		use_termux_ids=false
-		kernel_release="${KERNEL_RELEASE}"
+		no_proot_errors=false
+		no_sysvipc=false
+		fix_ports=false
+		kernel_release=""
+		user_name=""
 
 		# Process command line arguments
 		while [ "\${#}" -gt 0 ]; do
 		    case "\${1}" in
-		        --command*)
-		            optarg="\${1//--command/}"
-		            optarg="\${optarg//=/}"
+		        --wd*)
+		            optarg="\${1/--wd/}"
+		            optarg="\${optarg/=/}"
 		            if [ -z "\${optarg}" ]; then
 		                shift
 		                optarg="\${1}"
 		            fi
 		            if [ -z "\${optarg}" ]; then
-		                echo "Option '--command' requires an argument."
+		                echo "Option '--wd' requires an argument."
 		                exit 1
 		            fi
-		            distro_command="\${optarg}"
-		            unset optarg
+		            working_dir="\${optarg}"
 		            ;;
-		        --bind*)
-		            optarg="\${1//--bind/}"
-		            optarg="\${optarg//=/}"
+		        --home*)
+		            optarg="\${1/--home/}"
+		            optarg="\${optarg/=/}"
 		            if [ -z "\${optarg}" ]; then
 		                shift
 		                optarg="\${1}"
 		            fi
 		            if [ -z "\${optarg}" ]; then
-		                echo "Option '--bind' requires an argument."
+		                echo "Option '--home' requires an argument."
 		                exit 1
 		            fi
-		            custom_bindings+=" --bind=\${optarg}"
-		            unset optarg
+		            home_dir="\${optarg}"
 		            ;;
-		        --share-tmp-dir)
-		            share_tmp_dir=true
-		            ;;
-		        --no-sysvipc)
-		            no_sysvipc=true
-		            ;;
-		        --no-link2symlink)
-		            no_link2symlink=true
-		            ;;
-		        --no-kill-on-exit)
-		            no_kill_on_exit=true
-		            ;;
-		        --isolated)
-		            isolated_env=true
-		            ;;
-		        --protect-ports)
-		            protect_ports=true
-		            ;;
-		        --use-termux-ids)
-		            use_termux_ids=true
+		        --env*)
+		            optarg="\${1/--env/}"
+		            optarg="\${optarg/=/}"
+		            if [ -z "\${optarg}" ]; then
+		                shift
+		                optarg="\${1}"
+		            fi
+		            if [ -z "\${optarg}" ]; then
+		                echo "Option '--env' requires an argument."
+		                exit 1
+		            fi
+		            env_vars+=("\${optarg}")
 		            ;;
 		        --id*)
-		            optarg="\${1//--id/}"
-		            optarg="\${optarg//=/}"
+		            optarg="\${1/--id/}"
+		            optarg="\${optarg/=/}"
 		            if [ -z "\${optarg}" ]; then
 		                shift
 		                optarg="\${1}"
@@ -324,57 +323,185 @@ create_rootfs_launcher() {
 		                exit 1
 		            fi
 		            custom_ids="\${optarg}"
-		            unset optarg
 		            ;;
-		        --kernel-release*)
-		            optarg="\${1//--kernel-release/}"
-		            optarg="\${optarg//=/}"
+		        --termux-ids)
+		            custom_ids="\$(id -u):\$(id -g)"
+		            ;;
+		        --isolated)
+		            isolated_env=true
+		            ;;
+		        --bind*)
+		            optarg="\${1/--bind/}"
+		            optarg="\${optarg/=/}"
 		            if [ -z "\${optarg}" ]; then
 		                shift
 		                optarg="\${1}"
 		            fi
 		            if [ -z "\${optarg}" ]; then
-		                echo "Option '--kernel-release' requires an argument."
+		                echo "Option '--bind' requires an argument."
+		                exit 1
+		            fi
+		            custom_bindings+=("--bind=\${optarg}")
+		            ;;
+		        --share-tmp)
+		            share_tmp=true
+		            ;;
+		        --no-kill-on-exit)
+		            no_kill_on_exit=true
+		            ;;
+		        --no-link2symlink)
+		            no_link2symlink=true
+		            ;;
+		        --no-proot-errors)
+		            no_proot_errors=true
+		            ;;
+		        --no-sysvipc)
+		            no_sysvipc=true
+		            ;;
+		        --fix-ports)
+		            fix_ports=true
+		            ;;
+		        --kernel*)
+		            optarg="\${1/--kernel/}"
+		            optarg="\${optarg/=/}"
+		            if [ -z "\${optarg}" ]; then
+		                shift
+		                optarg="\${1}"
+		            fi
+		            if [ -z "\${optarg}" ]; then
+		                echo "Option '--kernel' requires an argument."
 		                exit 1
 		            fi
 		            kernel_release="\${optarg}"
-		            unset optarg
 		            ;;
-		        -h | --help)
-		            echo "Usage: $(basename "${DISTRO_LAUNCHER}") [OPTION]... [USERNAME]"
-		            echo ""
-		            echo "Login or execute a comand in ${DISTRO_NAME} as USERNAME (default=${DEFAULT_LOGIN})."
-		            echo ""
-		            echo "Options:"
-		            echo "      --command[=COMMAND]    Execute COMAND in distro."
-		            echo "      --bind[=PATH]          Make the content of PATH accessible in the"
-		            echo "                             guest rootfs."
-		            echo "      --share-tmp-dir        Bind TMPDIR (${TERMUX_FILES_DIR}/usr/tmp"
-		            echo "                             if not set) to /tmp in the guest rootfs."
-		            echo "      --no-sysvipc           Do not handle System V IPC syscalls in proot"
-		            echo "                             (WARNING: use with caution)."
-		            echo "      --no-link2symlink      Do not fake hard links with symbolic links"
-		            echo "                             (WARNING: prevents hard link support in distro)."
-		            echo "      --no-kill-on-exit      Do not kill running processes on command exit."
-		            echo "      --isolated             Do not include host specific variables and"
-		            echo "                             directories."
-		            echo "      --protect-ports        Modify bindings to protected ports to use a"
-		            echo "                             higher port number."
-		            echo "      --use-termux-ids       Make the current user and group appear as that"
-		            echo "                             of termux. (ignores '--id')"
-		            echo "      --id[=UID:GID]         Make the current user and group appear as UID"
-		            echo "                             and GID."
-		            echo "      --kernel-release[=STRING]"
-		            echo "                             Make current kernel release appear as"
-		            echo "                             STRING. (default='${KERNEL_RELEASE}')"
-		            echo "  -v, --version              Print distro version and exit."
-		            echo "  -h, --help                 Print this information and exit."
-		            echo ""
-		            echo "Documentation: ${GITHUB}/${DISTRO_REPOSITORY}"
-		            exit
+		        --rename*)
+		            optarg="\${1/--rename/}"
+		            optarg="\${optarg/=/}"
+		            if [ -z "\${optarg}" ]; then
+		                shift
+		                optarg="\${1}"
+		            fi
+		            if [ -z "\${optarg}" ]; then
+		                echo "Option '--rename' requires an argument."
+		                exit 1
+		            fi
+		            if ! [ -e "${ROOTFS_DIRECTORY}" ]; then
+		                echo "'${ROOTFS_DIRECTORY}' is missing, exiting."
+		                exit 1
+		            fi
+		            old_chroot="${ROOTFS_DIRECTORY}"
+		            new_chroot="\$(realpath "\${optarg}")"
+		            rmdir "\${new_chroot}" >/dev/null 2>&1
+		            if [ -e "\${new_chroot}" ]; then
+		                echo "'\${new_chroot}' already exists, exiting."
+		                exit 1
+		            fi
+		            echo "Renaming '\${old_chroot}' to '\${new_chroot}'."
+		            if mv "\${old_chroot}" "\${new_chroot}" &&
+		                echo "Updating proot links, this may take a while." &&
+		                find "\${new_chroot}" -type l | while read -r name; do
+		                    old_target="\$(readlink "\${name}")"
+		                    if [ "\${old_target:0:\${#old_chroot}}" = "\${old_chroot}" ]; then
+		                        ln -sf "\${old_target/\${old_chroot}/\${new_chroot}}" "\${name}"
+		                    fi
+		                done &&
+		                echo "Updating \${program_name} command." &&
+		                sed -Ei "s@\${old_chroot}@\${new_chroot}@" "${DISTRO_LAUNCHER}"; then
+		                echo "${DISTRO_NAME} rootfs rename complete."
+		                exit
+		            else
+		                echo "${DISTRO_NAME} rootfs rename failed."
+		                exit 1
+		            fi
+		            ;;
+		        --backup*)
+		            optarg="\${1/--backup/}"
+		            optarg="\${optarg/=/}"
+		            if [ -z "\${optarg}" ]; then
+		                shift
+		                optarg="\${1}"
+		            fi
+		            if [ -z "\${optarg}" ]; then
+		                echo "Option '--backup' requires an argument."
+		                exit 1
+		            fi
+		            if ! [ -e "${ROOTFS_DIRECTORY}" ]; then
+		                echo "'${ROOTFS_DIRECTORY}' is missing, exiting."
+		                exit 1
+		            fi
+		            shift
+		            file="\${optarg}"
+		            include=(.l2s bin boot captures etc home lib media mnt opt proc root run sbin snap srv sys tmp usr var)
+		            exclude=(apex data dev linkerconfig product sdcard storage system vendor "\${@}")
+		            echo "Packing ${DISTRO_NAME} into '\${file}'."
+		            echo "Including:" "\${include[@]}"
+		            echo "Excluding:" "\${exclude[@]}"
+		            exclude_args=()
+		            for i in "\${exclude[@]}"; do
+		                i="\$(echo -n "\${i}" | sed -E "s@^/@@")"
+		                exclude_args=("\${exclude_args[@]}" "--exclude=\${i}")
+		            done
+		            for i in "\${include[@]}" "\${exclude[@]}"; do
+		                mkdir -p "${ROOTFS_DIRECTORY}/\${i}" >/dev/null 2>&1
+		            done
+		            if tar --warning=no-file-ignored --one-file-system --xattrs --xattrs-include='*' --preserve-permissions --create --auto-compress -C "${ROOTFS_DIRECTORY}" --file="\${file}" "\${exclude_args[@]}" "\${include[@]}"; then
+		                echo "${DISTRO_NAME} backup complete."
+		                exit
+		            else
+		                echo "${DISTRO_NAME} backup failed."
+		                exit 1
+		            fi
+		            ;;
+		        --restore*)
+		            optarg="\${1/--restore/}"
+		            optarg="\${optarg/=/}"
+		            if [ -z "\${optarg}" ]; then
+		                shift
+		                optarg="\${1}"
+		            fi
+		            if [ -z "\${optarg}" ]; then
+		                echo "Option '--restore' requires an argument."
+		                exit 1
+		            fi
+		            rmdir "${ROOTFS_DIRECTORY}" >/dev/null 2>&1
+		            if [ -e "${ROOTFS_DIRECTORY}" ]; then
+		                echo "'${ROOTFS_DIRECTORY}' already exists, exiting."
+		                exit 1
+		            fi
+		            file="\${optarg}"
+		            echo "Restoring ${DISTRO_NAME} from \${file}."
+		            mkdir -p "${ROOTFS_DIRECTORY}" >/dev/null 2>&1
+		            if tar --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --auto-compress -C "${ROOTFS_DIRECTORY}" --file "\${file}"; then
+		                echo "${DISTRO_NAME} restore complete."
+		                exit
+		            else
+		                echo "${DISTRO_NAME} restore failed."
+		                exit 1
+		            fi
+		            ;;
+		        --uninstall)
+		            if [ -d "${ROOTFS_DIRECTORY}" ]; then
+		                echo "You are about to uninstall ${DISTRO_NAME} from '${ROOTFS_DIRECTORY}'."
+		                echo "This action will delete all files in this directory!"
+		                if read -r -p "Confirm action (y/N): " choice && [[ "\$choice" =~ ^(y|Y) ]]; then
+		                    echo "Uninstalling ${DISTRO_NAME}."
+		                    chmod 777 -R "${ROOTFS_DIRECTORY}" "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" >/dev/null 2>&1
+		                    if rm -rf "${ROOTFS_DIRECTORY}" "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}"; then
+		                        echo "${DISTRO_NAME} uninstall complete."
+		                        exit
+		                    else
+		                        echo "${DISTRO_NAME} uninstall failed."
+		                    fi
+		                else
+		                    echo "Uninstallation cancelled."
+		                fi
+		            else
+		                echo "No rootfs found in '${ROOTFS_DIRECTORY}'."
+		            fi
+		            exit 1
 		            ;;
 		        -v | --version)
-		            echo "${DISTRO_NAME} launcher, version ${VERSION_NAME}."
+		            echo "\${program_name} version ${VERSION_NAME}"
 		            echo "Copyright (C) 2023-2025 ${AUTHOR} <${GITHUB}>."
 		            echo "License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>."
 		            echo ""
@@ -382,52 +509,116 @@ create_rootfs_launcher() {
 		            echo "There is NO WARRANTY, to the extent permitted by law."
 		            exit
 		            ;;
+		        -h | --help)
+		            echo "Usage: \${program_name} [OPTION] [USERNAME] [-- [COMMAND [ARGS]]]"
+		            echo ""
+		            echo "Login or execute COMMAND in ${DISTRO_NAME} as USERNAME (default=${DEFAULT_LOGIN})."
+		            echo ""
+		            echo "LOGIN OPTIONS:"
+		            echo "      --wd DIR               Set working directory. (defaults to HOME)"
+		            echo "      --home DIR             Set home directory."
+		            echo "                             (defaults to /home/USERNAME or /root)"
+		            echo "      --env VAR=VAL          Set environment variable."
+		            echo "      --id UID:GID           Set the current user and group ids."
+		            echo "      --termux-ids           Use Termux user and group ids."
+		            echo "      --isolated             Do not mount host specific directories in the"
+		            echo "                             guest file system."
+		            echo "      --bind PATH1[:PATH2]   Make PATH1 accessible as PATH2 in the guest"
+		            echo "                             file system. (overrrides '--isolated')"
+		            echo "      --share-tmp            Bind Termux TMPDIR to /tmp in the guest file"
+		            echo "                             system."
+		            echo "      --no-kill-on-exit      Do not kill running processes on exit."
+		            echo "      --no-link2symlink      Disable hard-link emulation by proot."
+		            echo "      --no-proot-errors      Prevent proot from printing error messages"
+		            echo "                             except fatal errors."
+		            echo "      --no-sysvipc           Disable System V IPC emulation by proot."
+		            echo "      --fix-ports            Modify bindings to protected ports to use a"
+		            echo "                             higher port number."
+		            echo "      --kernel STRING        Set the current kernel release."
+		            echo ""
+		            echo "MANAGEMENT OPTIONS:"
+		            echo "      --rename PATH          Rename the rootfs directory."
+		            echo "      --backup FILE [DIRS]   Backup the rootfs directory excluding DIRS."
+		            echo "                             The backup is performed as a TAR archive and"
+		            echo "                             compression is determined by the output file"
+		            echo "                             extension."
+		            echo "      --restore FILE         Restore the rootfs directory from TAR archive."
+		            echo "      --uninstall            Uninstall ${DISTRO_NAME}."
+		            echo ""
+		            echo "OTHER OPTIONS:"
+		            echo "  -v, --version              Print program version and exit."
+		            echo "  -h, --help                 Print help message and exit."
+		            echo ""
+		            echo "For more information, visit:"
+		            echo "  ⇒ ${GITHUB}/${DISTRO_REPOSITORY}"
+		            exit
+		            ;;
+		        --)
+		            shift
+		            break
+		            ;;
 		        -*)
-		            echo "Unrecognized argument/option '\${1}'."
-		            echo "Try '$(basename "${DISTRO_LAUNCHER}") --help' for more information"
+		            echo "Unrecognized option '\${1}'."
+		            echo "See '\${program_name} --help' for more information"
 		            exit 1
 		            ;;
-		        *) login_name="\${1}" ;;
+		        *)
+		            if [ -z "\${user_name}" ]; then
+		                user_name="\${1}"
+		            else
+		                echo "Received too many arguments. Did you forget to add '--'?"
+		                echo "See '\${program_name} --help' for more information"
+		                exit 1
+		            fi
+		            ;;
 		    esac
 		    shift
 		done
 
+		# Set login name
+		if [ -z "\${user_name}" ]; then
+		    user_name="${DEFAULT_LOGIN}"
+		fi
+
+		# Set home directory
+		if [ -z "\${home_dir}" ]; then
+		    if [ "\${user_name}" = "root" ]; then
+		        home_dir="/root"
+		    else
+		        home_dir="/home/\${user_name}"
+		    fi
+		fi
+		env_vars=("HOME=\${home_dir}" "\${env_vars[@]}")
+		mkdir -p "\${home_dir}" >/dev/null 2>&1
+
 		# Prevent running as root
 		if [ "\${EUID}" = "0" ] || [ "\$(id -u)" = "0" ]; then
-		    echo "Nope, I can't let you start ${DISTRO_NAME} with root permissions!"
-		    echo "This can cause several issues and potentially damage your phone."
+		    echo "I can't let you start ${DISTRO_NAME} with root permissions! This can cause several issues and potentially damage your phone."
 		    exit 1
 		fi
 
-		# Prevent running within a chroot environment
+		# Prevent running within proot
 		pid="\$(grep TracerPid "/proc/\$\$/status" | cut -d \$'\t' -f 2)"
 		if [ "\${pid}" != 0 ]; then
-		    name="\$(grep Name "/proc/\${pid}/status" | cut -d \$'\t' -f 2)"
-		    if [ "\$name" = "proot" ]; then
-		        echo "Nope, I can't let you start ${DISTRO_NAME} within a chroot environment!"
-		        echo "This can cause performance and other issues."
+		    if [ "\$(grep Name "/proc/\${pid}/status" | cut -d \$'\t' -f 2)" = "proot" ]; then
+		        echo "I can't let you start ${DISTRO_NAME} within proot! This can lead to performance degradation and other issues."
 		        exit 1
 		    fi
 		fi
-		unset pid name
 
 		# Check for login command
-		if [ -z "\${distro_command}" ]; then
+		if [ -z "\${*}" ]; then
 		    # Prefer su as login command
-		    if [ -x "${ROOTFS_DIRECTORY}/bin/su" ]; then
-		        distro_command="su --login \${login_name}"
-		    elif [ -x "${ROOTFS_DIRECTORY}/bin/login" ]; then
-		        distro_command="login \${login_name}"
+		    if [ -x "${ROOTFS_DIRECTORY}/usr/bin/su" ]; then
+		        set -- su --login "\${user_name}"
+		    elif [ -x "${ROOTFS_DIRECTORY}/usr/bin/login" ]; then
+		        set -- login "\${user_name}"
 		    else
 		        echo "Couldn't find any login command in the guest rootfs."
-		        echo "Use '$(basename "${DISTRO_LAUNCHER}") --command[=COMMAND]'."
-		        echo "See '$(basename "${DISTRO_LAUNCHER}") --help' for more information."
+		        echo "See '\${program_name} --help' for more information."
 		        exit 1
 		    fi
 		fi
-
-		# unset LD_PRELOAD in case termux-exec is installed
-		unset LD_PRELOAD
 
 		# Create directory where proot stores all hard link info
 		export PROOT_L2S_DIR="${ROOTFS_DIRECTORY}/.l2s"
@@ -436,126 +627,115 @@ create_rootfs_launcher() {
 		fi
 
 		# Create fake /root/.version required by some apps i.e LibreOffice
-		if [ ! -f "${ROOTFS_DIRECTORY}/root/.version" ]; then
+		if ! [ -f "${ROOTFS_DIRECTORY}/root/.version" ]; then
 		    mkdir -p "${ROOTFS_DIRECTORY}/root" && touch "${ROOTFS_DIRECTORY}/root/.version"
 		fi
 
-		# Launch command
-		launch_command="proot"
+		proot_args=()
+		proot_args+=("-L")
+		proot_args+=("--cwd=\${working_dir:-\${home_dir}}")
+		proot_args+=("--rootfs=${ROOTFS_DIRECTORY}")
 
-		# Correct the size returned from lstat for symbolic links
-		launch_command+=" -L"
-		launch_command+=" --cwd=/root"
-		launch_command+=" --rootfs=${ROOTFS_DIRECTORY}"
-
-		# Turn off proot errors
-		# launch_command+=" --verbose=-1"
-
-		# Use termux UID/GID
-		if \${use_termux_ids}; then
-		    launch_command+=" --change-id=\$(id -u):\$(id -g)"
-		elif [ -n "\${custom_ids}" ]; then
-		    launch_command+=" --change-id=\${custom_ids}"
+		# Use custom UID/GID
+		if [ -n "\${custom_ids}" ]; then
+		    proot_args+=("--change-id=\${custom_ids}")
 		else
-		    launch_command+=" --root-id"
+		    proot_args+=("--root-id")
 		fi
 
-		# Fake hard links using symbolic links
+		# Enable proot hard-link emulation
 		if ! "\${no_link2symlink}"; then
-		    launch_command+=" --link2symlink"
+		    proot_args+=("--link2symlink")
 		fi
 
 		# Kill all processes on command exit
 		if ! "\${no_kill_on_exit}"; then
-		    launch_command+=" --kill-on-exit"
+		    proot_args+=("--kill-on-exit")
 		fi
 
 		# Handle System V IPC syscalls in proot
 		if ! "\${no_sysvipc}"; then
-		    launch_command+=" --sysvipc"
+		    proot_args+=("--sysvipc")
 		fi
 
-		# Make current kernel appear as kernel release
-		launch_command+=" --kernel-release=\${kernel_release}"
+		# Make current kernel appear as kernel_release
+		proot_args+=("--kernel-release=\${kernel_release:-${KERNEL_RELEASE}}")
+
+		# Turn off proot errors
+		if \${no_proot_errors}; then
+		    proot_args+=("--verbose=-1")
+		fi
 
 		# Core file systems that should always be present.
-		launch_command+=" --bind=/dev"
-		launch_command+=" --bind=/dev/urandom:/dev/random"
-		launch_command+=" --bind=/proc"
-		launch_command+=" --bind=/proc/self/fd:/dev/fd"
-		launch_command+=" --bind=/proc/self/fd/0:/dev/stdin"
-		launch_command+=" --bind=/proc/self/fd/1:/dev/stdout"
-		launch_command+=" --bind=/proc/self/fd/2:/dev/stderr"
-		launch_command+=" --bind=/sys"
+		proot_args+=("--bind=/dev")
+		proot_args+=("--bind=/dev/urandom:/dev/random")
+		proot_args+=("--bind=/proc")
+		proot_args+=("--bind=/proc/self/fd:/dev/fd")
+		proot_args+=("--bind=/proc/self/fd/0:/dev/stdin")
+		proot_args+=("--bind=/proc/self/fd/1:/dev/stdout")
+		proot_args+=("--bind=/proc/self/fd/2:/dev/stderr")
+		proot_args+=("--bind=/sys")
 
-		# Fake /proc/loadavg if necessary
+		# Fake system data entries restricted by Android OS
 		if ! [ -r /proc/loadavg ]; then
-		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.loadavg:/proc/loadavg"
+		    proot_args+=("--bind=${ROOTFS_DIRECTORY}/proc/.loadavg:/proc/loadavg")
 		fi
-
-		# Fake /proc/stat if necessary
 		if ! [ -r /proc/stat ]; then
-		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.stat:/proc/stat"
+		    proot_args+=("--bind=${ROOTFS_DIRECTORY}/proc/.stat:/proc/stat")
 		fi
-
-		# Fake /proc/uptime if necessary
 		if ! [ -r /proc/uptime ]; then
-		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.uptime:/proc/uptime"
+		    proot_args+=("--bind=${ROOTFS_DIRECTORY}/proc/.uptime:/proc/uptime")
 		fi
-
-		# Fake /proc/version if necessary
 		if ! [ -r /proc/version ]; then
-		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.version:/proc/version"
+		    proot_args+=("--bind=${ROOTFS_DIRECTORY}/proc/.version:/proc/version")
 		fi
-
-		# Fake /proc/vmstat if necessary
 		if ! [ -r /proc/vmstat ]; then
-		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.vmstat:/proc/vmstat"
+		    proot_args+=("--bind=${ROOTFS_DIRECTORY}/proc/.vmstat:/proc/vmstat")
 		fi
-
-		# Fake /proc/sys/kernel/cap_last_cap if necessary
 		if ! [ -r /proc/sys/kernel/cap_last_cap ]; then
-		    launch_command+=" --bind=${ROOTFS_DIRECTORY}/proc/.sysctl_entry_cap_last_cap:/proc/sys/kernel/cap_last_cap"
+		    proot_args+=("--bind=${ROOTFS_DIRECTORY}/proc/.sysctl_entry_cap_last_cap:/proc/sys/kernel/cap_last_cap")
 		fi
 
 		# Bind /tmp to /dev/shm
-		launch_command+=" --bind=${ROOTFS_DIRECTORY}/tmp:/dev/shm"
-		if [ ! -d "${ROOTFS_DIRECTORY}/tmp" ]; then
+		proot_args+=("--bind=${ROOTFS_DIRECTORY}/tmp:/dev/shm")
+		if ! [ -d "${ROOTFS_DIRECTORY}/tmp" ]; then
 		    mkdir -p "${ROOTFS_DIRECTORY}/tmp"
 		fi
 		chmod 1777 "${ROOTFS_DIRECTORY}/tmp"
 
-		# Add host system specific variables and directories
+		# Add host system specific files and directories
 		if ! "\${isolated_env}"; then
 		    for dir in /apex /data/app /data/dalvik-cache /data/misc/apexdata/com.android.art/dalvik-cache /product /system /vendor; do
-		        [ ! -d "\${dir}" ] && continue
+		        if ! [ -d "\${dir}" ]; then
+		            continue
+		        fi
 		        dir_mode="\$(stat --format='%a' "\${dir}")"
 		        if [[ \${dir_mode:2} =~ ^[157]$ ]]; then
-		            launch_command+=" --bind=\${dir}"
+		            proot_args+=("--bind=\${dir}")
 		        fi
 		    done
-		    unset dir dir_mode
 
 		    # Required by termux-api Android 11
 		    if [ -e "/linkerconfig/ld.config.txt" ]; then
-		        launch_command+=" --bind=/linkerconfig/ld.config.txt"
+		        proot_args+=("--bind=/linkerconfig/ld.config.txt")
 		    fi
 
 		    # Used by getprop
 		    if [ -f /property_contexts ]; then
-		        launch_command+=" --bind=/property_contexts"
+		        proot_args+=("--bind=/property_contexts")
 		    fi
 
-		    launch_command+=" --bind=/data/data/com.termux/cache"
-		    launch_command+=" --bind=${TERMUX_FILES_DIR}/home"
-		    launch_command+=" --bind=${TERMUX_FILES_DIR}/usr"
+		    proot_args+=("--bind=/data/data/com.termux/cache")
+		    proot_args+=("--bind=${TERMUX_FILES_DIR}/home")
+		    proot_args+=("--bind=${TERMUX_FILES_DIR}/usr")
 
 		    if [ -d "${TERMUX_FILES_DIR}/apps" ]; then
-		        launch_command+=" --bind=${TERMUX_FILES_DIR}/apps"
+		        proot_args+=("--bind=${TERMUX_FILES_DIR}/apps")
 		    fi
+
 		    if [ -r /storage ]; then
-		        launch_command+=" --bind=/storage"
-		        launch_command+=" --bind=/storage/emulated/0:/sdcard"
+		        proot_args+=("--bind=/storage")
+		        proot_args+=("--bind=/storage/emulated/0:/sdcard")
 		    else
 		        if [ -r /storage/self/primary/ ]; then
 		            storage_path="/storage/self/primary"
@@ -567,46 +747,44 @@ create_rootfs_launcher() {
 		            storage_path=""
 		        fi
 		        if [ -n "\${storage_path}" ]; then
-		            launch_command+=" --bind=\${storage_path}:/sdcard"
-		            launch_command+=" --bind=\${storage_path}:/storage/emulated/0"
-		            launch_command+=" --bind=\${storage_path}:/storage/self/primary"
+		            proot_args+=("--bind=\${storage_path}:/sdcard")
+		            proot_args+=("--bind=\${storage_path}:/storage/emulated/0")
+		            proot_args+=("--bind=\${storage_path}:/storage/self/primary")
 		        fi
-		        unset storage_path
 		    fi
 
 		    if [ -n "\${EXTERNAL_STORAGE}" ]; then
-		        launch_command+=" --bind=\${EXTERNAL_STORAGE}"
+		        proot_args+=("--bind=\${EXTERNAL_STORAGE}")
 		    fi
 		fi
 
 		# Bind the tmp folder of the host system to the guest system (ignores --isolated)
-		if \${share_tmp_dir}; then
-		    launch_command+=" --bind=\${TMPDIR:-${TERMUX_FILES_DIR}/usr/tmp}:/tmp"
+		if \${share_tmp}; then
+		    proot_args+=("--bind=\${TMPDIR:-${TERMUX_FILES_DIR}/usr/tmp}:/tmp")
 		fi
 
 		# Bind custom directories
-		launch_command+="\${custom_bindings}"
+		if [ \${#custom_bindings} -gt 0 ]; then
+		    proot_args+=("\${custom_bindings[@]}")
+		fi
 
 		# Modify bindings to protected ports to use a higher port number.
-		if \${protect_ports}; then
-		    launch_command+=" -p"
+		if \${fix_ports}; then
+		    proot_args+=("-p")
 		fi
 
 		# Setup the default environment
-		launch_command+=" /bin/env -i HOME=/root LANG=C.UTF-8 TERM=\${TERM:-xterm-256color} PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/games:/usr/local/bin:/usr/local/sbin:/usr/local/games:/system/bin:/system/xbin"
-
-		# Kill all running pulseaudio servers
-		if [ -x "\$(command -v killall)" ]; then
-		    killall -qw -9 pulseaudio || true
-		fi
+		proot_args+=("/usr/bin/env" "-i" "\${env_vars[@]}")
 
 		# Enable audio support in distro (for root users, add option '--system')
-		pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
+		if ! pidof -q pulseaudio >/dev/null 2>&1; then
+		    pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
+		fi
 
-		# Execute launch command (exec replaces current shell)
-		exec \${launch_command} \${distro_command}
+		# Execute launch command
+		exec proot "\${proot_args[@]}" "\${@}"
 	EOF
-	if ln -sfT "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}" && termux-fix-shebang "${DISTRO_LAUNCHER}" &>>"${LOG_FILE}" && chmod 700 "${DISTRO_LAUNCHER}" &>>"${LOG_FILE}"; then
+	if ln -sfT "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" >>"${LOG_FILE}" 2>&1 && termux-fix-shebang "${DISTRO_LAUNCHER}" >>"${LOG_FILE}" 2>&1 && chmod 700 "${DISTRO_LAUNCHER}" >>"${LOG_FILE}" 2>&1; then
 		msg -s "Done, launcher created successfully!"
 	else
 		msg -q "Sorry, have I failed to create the ${DISTRO_NAME} launcher."
@@ -619,7 +797,7 @@ create_rootfs_launcher() {
 create_vnc_launcher() {
 	msg -t "Lemme create a vnc wrapper in ${DISTRO_NAME}."
 	local vnc_launcher="${ROOTFS_DIRECTORY}/usr/local/bin/vnc"
-	mkdir -p "${ROOTFS_DIRECTORY}/usr/local/bin" &>>"${LOG_FILE}" && cat >"${vnc_launcher}" 2>>"${LOG_FILE}" <<-EOF
+	mkdir -p "${ROOTFS_DIRECTORY}/usr/local/bin" >>"${LOG_FILE}" 2>&1 && cat >"${vnc_launcher}" 2>>"${LOG_FILE}" <<-EOF
 		#!/bin/bash
 
 		################################################################################
@@ -680,7 +858,7 @@ create_vnc_launcher() {
 		print_usage() {
 		    echo "Usage \$(basename "\${0}") [<command>]."
 		    echo ""
-		    echo "Start vnc session."
+		    echo "Without any command, starts a new vnc session."
 		    echo ""
 		    echo "Commands include:"
 		    echo "  kill             Kill vnc session."
@@ -736,7 +914,7 @@ create_vnc_launcher() {
 		    *) root_check && clean_tmp && set_geometry && start_session "\${opts[@]}" ;;
 		esac
 	EOF
-	if chmod 700 "${vnc_launcher}" &>>"${LOG_FILE}"; then
+	if chmod 700 "${vnc_launcher}" >>"${LOG_FILE}" 2>&1; then
 		msg -s "Done, wrapper created successfully!"
 	else
 		msg -e "Sorry, have I failed to create the vnc wrapper."
@@ -748,7 +926,7 @@ create_vnc_launcher() {
 ################################################################################
 make_configurations() {
 	msg -t "Now, lemme make some configurations for you."
-	for config in fake_proc_setup android_ids_setup settings_configurations environment_variables_setup; do
+	for config in sys_setup ids_setup extra_setups env_setup; do
 		status="$(${config} 2>>"${LOG_FILE}")"
 		if [ -n "${status//-0/}" ]; then
 			msg -e "Oops, ${config//_/ } failed with error code: (${status})"
@@ -777,9 +955,9 @@ set_user_shell() {
 		read -rep " " -i "$(basename "${default_shell}")" shell
 		shell="$(basename "${shell}")"
 		if [[ ${shells[*]} == *"${shell}"* ]] && [ -x "${ROOTFS_DIRECTORY}/bin/${shell}" ] && {
-			distro_exec /bin/chsh -s "/bin/${shell}" root &>>"${LOG_FILE}"
+			distro_exec /bin/chsh -s "/bin/${shell}" root >>"${LOG_FILE}" 2>&1
 			if [ "${DEFAULT_LOGIN}" != "root" ]; then
-				distro_exec /bin/chsh -s "/bin/${shell}" "${DEFAULT_LOGIN}" &>>"${LOG_FILE}"
+				distro_exec /bin/chsh -s "/bin/${shell}" "${DEFAULT_LOGIN}" >>"${LOG_FILE}" 2>&1
 			fi
 		}; then
 			msg -s "The default login shell is now '${Y}/bin/${shell}${G}'."
@@ -818,12 +996,11 @@ set_zone_info() {
 ################################################################################
 # Makes the necessary clean ups                                                #
 ################################################################################
-clean_up() {
+prompt_cleanup() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ] && [ -z "${KEEP_ROOTFS_ARCHIVE}" ] && [ -f "${ARCHIVE_NAME}" ]; then
 		if ask -n -- -t "Can I remove the downloaded the rootfs archive to save space?"; then
 			msg "Okay, removing '!{Y}${ARCHIVE_NAME}${C}'"
-			chmod 777 -R "${ARCHIVE_NAME}" &>>"${LOG_FILE}"
-			if rm -rf "${ARCHIVE_NAME}" &>>"${LOG_FILE}"; then
+			if remove "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1; then
 				msg -s "Done, the rootfs archive is gone!"
 			else
 				msg -e "Sorry, have I failed to remove the rootfs archive."
@@ -857,30 +1034,21 @@ complete_msg() {
 # Uninstalls the rootfs                                                        #
 ################################################################################
 uninstall_rootfs() {
-	if [ -d "${ROOTFS_DIRECTORY}" ] && [ -n "$(ls -AU "${ROOTFS_DIRECTORY}" 2>>"${LOG_FILE}")" ]; then
+	if [ -d "${ROOTFS_DIRECTORY}" ]; then
 		msg -at "You are about to uninstall ${DISTRO_NAME} from '${Y}${ROOTFS_DIRECTORY}${C}'."
-		msg -ae "This action will delete all files (including valuable ones if any) in this directory!"
-		if ask -n0 -- -a "Confirm action."; then
-			msg -a "Uninstalling ${DISTRO_NAME}, just a sec."
-			chmod 777 -R "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
-			if rm -rf "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"; then
-				msg -as "Done, ${DISTRO_NAME} uninstalled successfully!"
-				msg -a "Removing commands."
-				chmod 777 -R "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}"
-				if rm -rf "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" &>>"${LOG_FILE}"; then
-					msg -as "Done, commands removed successfully!"
-				else
-					msg -ae "Sorry, have I failed to remove:"
-					msg -l "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}"
-				fi
+		msg -ae "This action will delete all files in this directory!"
+		if ask -n0 -- -a "Confirm action"; then
+			msg -a "Uninstalling ${DISTRO_NAME}."
+			if remove "${ROOTFS_DIRECTORY}" "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" >>"${LOG_FILE}" 2>&1; then
+				msg -as "${DISTRO_NAME} uninstall complete."
 			else
-				msg -aq "Sorry, have I failed to uninstall ${DISTRO_NAME}."
+				msg -aq "${DISTRO_NAME} uninstall failed."
 			fi
 		else
-			msg -a "Uninstallation aborted."
+			msg -aq "Uninstallation cancelled."
 		fi
 	else
-		msg -a "No rootfs found in '${ROOTFS_DIRECTORY}'."
+		msg -aq "No rootfs found in '${ROOTFS_DIRECTORY}'."
 	fi
 }
 
@@ -888,7 +1056,7 @@ uninstall_rootfs() {
 # Prints the program version information                                       #
 ################################################################################
 print_version() {
-	msg -a "${DISTRO_NAME} installer, version ${Y}${VERSION_NAME}${C}."
+	msg -a "${PROGRAM_NAME} version ${Y}${VERSION_NAME}${C}"
 	msg -a "Copyright (C) 2023-2025 ${AUTHOR} <${B}${U}${GITHUB}${L}${C}>."
 	msg -a "License GPLv3+: GNU GPL version 3 or later <${B}${U}https://gnu.org/licenses/gpl.html${L}${C}>."
 	msg -aN "This is free software, you are free to change and redistribute it."
@@ -899,42 +1067,49 @@ print_version() {
 # Prints the program usage information                                         #
 ################################################################################
 print_usage() {
-	msg -a "Usage: ${Y}${PROGRAM_NAME}${C} [OPTION]... [DIRECTORY]"
-	msg -aN "Install ${DISTRO_NAME} in DIRECTORY."
+	msg -a "Usage: ${Y}${PROGRAM_NAME}${C} [OPTION] [DIRECTORY]"
+	msg -aN "Installs ${DISTRO_NAME} in DIRECTORY."
 	msg -a "(default='${Y}${DEFAULT_ROOTFS_DIR}${C}')"
 	msg -aN "Options:"
-	msg -a "  -d, --directory[=PATH]     Change directory to PATH before execution."
-	msg -a "      --install-only         Installation only (use with caution)."
-	msg -a "      --config-only          Configurations only (if already installed)."
-	msg -a "  -u, --uninstall            Uninstall ${DISTRO_NAME}."
-	msg -a "      --color[=WHEN]         Enable/Disable color output if supported"
-	msg -a "                             (default='${Y}on${C}'). Valid arguments are:"
-	msg -a "                             [always|on] or [never|off]"
-	msg -a "  -v, --version              Print program version and exit."
-	msg -a "  -h, --help                 Print this information and exit."
-	msg -a "  -l, --log                  Create log file (${Y}${PROGRAM_NAME%.sh}.log${C})."
-	msg -aN "The install directory must be within '${Y}${TERMUX_FILES_DIR}${C}'"
-	msg -a "(or its sub-directories) to prevent permission issues."
-	msg -aN "Documentation: ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
+	msg -- "-d, --directory[=PATH] Change directory to PATH before execution."
+	msg -- "    --install-only     Installation only (use with caution)."
+	msg -- "    --config-only      Configurations only (if already installed)."
+	msg -- "-u, --uninstall        Uninstall ${DISTRO_NAME}."
+	msg -- "    --color[=WHEN]     Enable/Disable color output if supported"
+	msg -- "                       (default='${Y}on${C}'). Valid arguments are:"
+	msg -- "                       [always|on] or [never|off]"
+	msg -- "-l, --log              Log error messages to ${Y}${PROGRAM_NAME%.sh}.log${C}."
+	msg -- "-v, --version          Print program version and exit."
+	msg -- "-h, --help             Print help message and exit."
+	msg -aN "Note:"
+	msg -- "The install directory must be within '${Y}${TERMUX_FILES_DIR}${C}'"
+	msg -- "(or its sub-directories) to prevent permission issues."
+	msg -aN "For more information, visit:"
+	msg -- "⇒ ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
 
 ################################################################################
-# Prepares fake content for certain /proc entries                              #
-# Entries are based on values retrieved from Arch Linux (x86_64) running a VM  #
-# with 8 CPUs and 8GiB memory (some values edited to fit the distro)           #
+# Prepares fake content for system data interfaces restricted by Android OS.   #
+# Entries are based on values retrieved from Arch Linux (x86_64) running       #
+# a VM with 8 CPUs and 8GiB memory (some values edited to fit the distro)      #
 # Date: 2023.03.28, Linux 6.2.1                                                #
 ################################################################################
-fake_proc_setup() {
+sys_setup() {
 	local status=""
-	mkdir -p "${ROOTFS_DIRECTORY}/proc"
-	chmod 700 "${ROOTFS_DIRECTORY}/proc"
-	if [ ! -f "${ROOTFS_DIRECTORY}/proc/.loadavg" ]; then
+	local dir
+	for dir in proc sys sys/.empty; do
+		if ! [ -e "${ROOTFS_DIRECTORY}/${dir}" ]; then
+			mkdir -p "${ROOTFS_DIRECTORY}/${dir}"
+		fi
+		chmod 700 "${ROOTFS_DIRECTORY}/${dir}"
+	done
+	if ! [ -f "${ROOTFS_DIRECTORY}/proc/.loadavg" ]; then
 		cat <<-EOF >"${ROOTFS_DIRECTORY}/proc/.loadavg"
 			0.12 0.07 0.02 2/165 765
 		EOF
 	fi
 	status+="-${?}"
-	if [ ! -f "${ROOTFS_DIRECTORY}/proc/.stat" ]; then
+	if ! [ -f "${ROOTFS_DIRECTORY}/proc/.stat" ]; then
 		cat <<-EOF >"${ROOTFS_DIRECTORY}/proc/.stat"
 			cpu  1957 0 2877 93280 262 342 254 87 0 0
 			cpu0 31 0 226 12027 82 10 4 9 0 0
@@ -955,19 +1130,19 @@ fake_proc_setup() {
 		EOF
 	fi
 	status+="-${?}"
-	if [ ! -f "${ROOTFS_DIRECTORY}/proc/.uptime" ]; then
+	if ! [ -f "${ROOTFS_DIRECTORY}/proc/.uptime" ]; then
 		cat <<-EOF >"${ROOTFS_DIRECTORY}/proc/.uptime"
 			5400.0 0.0
 		EOF
 	fi
 	status+="-${?}"
-	if [ ! -f "${ROOTFS_DIRECTORY}/proc/.version" ]; then
+	if ! [ -f "${ROOTFS_DIRECTORY}/proc/.version" ]; then
 		cat <<-EOF >"${ROOTFS_DIRECTORY}/proc/.version"
 			Linux version ${KERNEL_RELEASE} (proot@termux) (gcc (GCC) 12.2.1 20230201, GNU ld (GNU Binutils) 2.40) #1 SMP PREEMPT_DYNAMIC Wed, 01 Mar 2023 00:00:00 +0000
 		EOF
 	fi
 	status+="-${?}"
-	if [ ! -f "${ROOTFS_DIRECTORY}/proc/.vmstat" ]; then
+	if ! [ -f "${ROOTFS_DIRECTORY}/proc/.vmstat" ]; then
 		cat <<-EOF >"${ROOTFS_DIRECTORY}/proc/.vmstat"
 			nr_free_pages 1743136
 			nr_zone_inactive_anon 179281
@@ -1150,9 +1325,15 @@ fake_proc_setup() {
 		EOF
 	fi
 	status+="-${?}"
-	if [ ! -f "${ROOTFS_DIRECTORY}/proc/.sysctl_entry_cap_last_cap" ]; then
+	if ! [ -f "${ROOTFS_DIRECTORY}/proc/.sysctl_entry_cap_last_cap" ]; then
 		cat <<-EOF >"${ROOTFS_DIRECTORY}/proc/.sysctl_entry_cap_last_cap"
 			40
+		EOF
+	fi
+	status+="-${?}"
+	if ! [ -f "${ROOTFS_DIRECTORY}/proc/.sysctl_inotify_max_user_watches" ]; then
+		cat <<-EOF >"${ROOTFS_DIRECTORY}/proc/.sysctl_inotify_max_user_watches"
+			4096
 		EOF
 	fi
 	status+="-${?}"
@@ -1162,11 +1343,10 @@ fake_proc_setup() {
 ################################################################################
 # Writes important environment variables to /etc/environment.                  #
 ################################################################################
-environment_variables_setup() {
+env_setup() {
 	local marker="${PROGRAM_NAME} variables"
 	local env_file="${ROOTFS_DIRECTORY}/etc/environment"
 	local status=""
-	local path="/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games:/system/bin:/system/xbin:${TERMUX_FILES_DIR}/usr/local/bin:${TERMUX_FILES_DIR}/usr/bin"
 	sed -i "/^### start\s${marker}\s###$/,/^###\send\s${marker}\s###$/d; /^$/d" "${env_file}"
 	{
 		echo -e "\n### start ${marker} ###"
@@ -1175,7 +1355,7 @@ environment_variables_setup() {
 		echo -e "# automatically every time ${PROGRAM_NAME} is executed.\n"
 		cat >>"${env_file}" <<-EOF
 			# Environment variables
-			export PATH="${path}"
+			export PATH="${DEFAULT_PATH}:${TERMUX_FILES_DIR}/usr/local/bin:${TERMUX_FILES_DIR}/usr/bin"
 			export TERM="${TERM:-xterm-256color}"
 			if [ -z "\${LANG}" ]; then
 			    export LANG="en_US.UTF-8"
@@ -1193,20 +1373,6 @@ environment_variables_setup() {
 		EOF
 	} >>"${env_file}"
 	status+="-${?}"
-	local java_home
-	if [[ "${SYS_ARCH}" == "armhf" ]]; then
-		java_home="/usr/lib/jvm/java-[0-9][0-9]-openjdk-armhf"
-	else
-		java_home="/usr/lib/jvm/java-[0-9][0-9]-openjdk-aarch64"
-	fi
-	# These don't work well in env_file
-	mkdir -p "${ROOTFS_DIRECTORY}/etc/profile.d/"
-	cat >"${ROOTFS_DIRECTORY}/etc/profile.d/java.sh" <<-EOF
-		# JDK variables
-		export JAVA_HOME="\$(echo ${java_home})"
-		export PATH="\${PATH}:\${JAVA_HOME}/bin"
-	EOF
-	status+="-${?}"
 	echo -e "\n# Host system variables" >>"${env_file}"
 	for var in COLORTERM ANDROID_DATA ANDROID_ROOT ANDROID_ART_ROOT ANDROID_I18N_ROOT ANDROID_RUNTIME_ROOT ANDROID_TZDATA_ROOT BOOTCLASSPATH DEX2OATBOOTCLASSPATH; do
 		if [ -n "${!var}" ]; then
@@ -1218,8 +1384,8 @@ environment_variables_setup() {
 	echo -e "\n### end ${marker} ###\n" >>"${env_file}"
 	# Fix PATH in some configuration files.
 	# for f in /etc/bash.bashrc /etc/profile; do # /etc/login.defs
-	# 	[ ! -e "${ROOTFS_DIRECTORY}${f}" ] && continue
-	# 	sed -i -E "s@\<(PATH=)(\"?[^\"[:space:]]+(\"|\$|\>))@\1\"${path}\"@g" "${ROOTFS_DIRECTORY}${f}"
+	# 	! [ -e "${ROOTFS_DIRECTORY}${f}" ] && continue
+	# 	sed -i -E "s@\<(PATH=)(\"?[^\"[:space:]]+(\"|\$|\>))@\1\"${DEFAULT_PATH}\"@g" "${ROOTFS_DIRECTORY}${f}"
 	# done
 	# status+="-${?}"
 	unset f
@@ -1229,9 +1395,9 @@ environment_variables_setup() {
 ################################################################################
 # Adds android-specific UIDs/GIDs to /etc/group and /etc/gshadow               #
 ################################################################################
-android_ids_setup() {
+ids_setup() {
 	local status=""
-	chmod u+rw "${ROOTFS_DIRECTORY}/etc/passwd" "${ROOTFS_DIRECTORY}/etc/shadow" "${ROOTFS_DIRECTORY}/etc/group" "${ROOTFS_DIRECTORY}/etc/gshadow" &>>"${LOG_FILE}"
+	chmod u+rw "${ROOTFS_DIRECTORY}/etc/passwd" "${ROOTFS_DIRECTORY}/etc/shadow" "${ROOTFS_DIRECTORY}/etc/group" "${ROOTFS_DIRECTORY}/etc/gshadow" >>"${LOG_FILE}" 2>&1
 	status+="-${?}"
 	if ! grep -qe ':Termux:/:/sbin/nologin' "${ROOTFS_DIRECTORY}/etc/passwd"; then
 		echo "aid_$(id -un):x:$(id -u):$(id -g):Termux:/:/sbin/nologin" >>"${ROOTFS_DIRECTORY}/etc/passwd"
@@ -1257,7 +1423,7 @@ android_ids_setup() {
 ################################################################################
 # Configures root access, sets the nameservers and sets host information       #
 ################################################################################
-settings_configurations() {
+extra_setups() {
 	local status=""
 	if [ -f "${ROOTFS_DIRECTORY}/root/.bash_profile" ]; then
 		sed -i '/^if/,/^fi/d' "${ROOTFS_DIRECTORY}/root/.bash_profile"
@@ -1268,7 +1434,7 @@ settings_configurations() {
 		if [ "${DEFAULT_LOGIN}" != "root" ]; then
 			distro_exec "/bin/passwd" -d "${DEFAULT_LOGIN}"
 		fi
-	fi &>>"${LOG_FILE}"
+	fi >>"${LOG_FILE}" 2>&1
 	status+="-${?}"
 	local dir="${ROOTFS_DIRECTORY}/bin"
 	if [ -x "${dir}/sudo" ]; then
@@ -1332,6 +1498,8 @@ distro_exec() {
 		--bind="${ROOTFS_DIRECTORY}/proc/.version:/proc/version" \
 		--bind="${ROOTFS_DIRECTORY}/proc/.vmstat:/proc/vmstat" \
 		--bind="${ROOTFS_DIRECTORY}/proc/.sysctl_entry_cap_last_cap:/proc/sys/kernel/cap_last_cap" \
+		--bind="${ROOTFS_DIRECTORY}/proc/.sysctl_inotify_max_user_watches:/proc/sys/fs/inotify/max_user_watches" \
+		--bind="${ROOTFS_DIRECTORY}/sys/.empty:/sys/fs/selinux" \
 		--kernel-release="${KERNEL_RELEASE}" \
 		--rootfs="${ROOTFS_DIRECTORY}" \
 		--link2symlink \
@@ -1339,7 +1507,7 @@ distro_exec() {
 		/bin/env -i \
 		"HOME=/root" \
 		"LANG=C.UTF-8" \
-		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+		"PATH=${DEFAULT_PATH}" \
 		"TERM=${TERM:-xterm-256color}" \
 		"TMPDIR=/tmp" \
 		"${@}"
@@ -1350,11 +1518,11 @@ distro_exec() {
 ################################################################################
 set_colors() {
 	if [ -x "$(command -v tput)" ] && [ "$(tput colors)" -ge 8 ] && [[ ${COLOR_SUPPORT} =~ "on"|"always"|"auto" ]]; then
-		R="$(echo -e "sgr0\nbold\nsetaf 1" | tput -S)"
-		G="$(echo -e "sgr0\nbold\nsetaf 2" | tput -S)"
-		Y="$(echo -e "sgr0\nbold\nsetaf 3" | tput -S)"
-		B="$(echo -e "sgr0\nbold\nsetaf 4" | tput -S)"
-		C="$(echo -e "sgr0\nbold\nsetaf 6" | tput -S)"
+		R="$(echo -ne "sgr0\nbold\nsetaf 1" | tput -S)"
+		G="$(echo -ne "sgr0\nbold\nsetaf 2" | tput -S)"
+		Y="$(echo -ne "sgr0\nbold\nsetaf 3" | tput -S)"
+		B="$(echo -ne "sgr0\nbold\nsetaf 4" | tput -S)"
+		C="$(echo -ne "sgr0\nbold\nsetaf 6" | tput -S)"
 		I="$(tput civis)" # hide cursor
 		V="$(tput cvvis)" # show cursor
 		U="$(tput smul)"  # underline
@@ -1372,6 +1540,14 @@ set_colors() {
 		L=""
 		N=""
 	fi
+}
+
+################################################################################
+# Removes files                                                                #
+################################################################################
+remove() {
+	chmod 777 -R "${@}"
+	rm -rf "${@}"
 }
 
 ################################################################################
@@ -1533,11 +1709,16 @@ ask() {
 GITHUB="https://github.com/jorexdeveloper"
 AUTHOR="Jore"
 
+# Default env path
+DEFAULT_PATH="/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games:/system/bin:/system/xbin"
+
 # Output for log messages
 LOG_FILE="/dev/null"
 
-# Enable color by default
-COLOR_SUPPORT=always
+# Enable color in terminals (fd 1 for stdout)
+if [ -t 1 ]; then
+	COLOR_SUPPORT=on
+fi
 
 # Update color variables
 set_colors
@@ -1555,8 +1736,8 @@ ARGS=()
 while [ "${#}" -gt 0 ]; do
 	case "${1}" in
 		-d | --directory*)
-			optarg="${1//--directory/}"
-			optarg="${optarg//=/}"
+			optarg="{1/--directory/}"
+			optarg="${optarg/=/}"
 			if [ "${optarg}" = "-d" ] || [ -z "${optarg}" ]; then
 				shift
 				optarg="${1}"
@@ -1592,8 +1773,8 @@ while [ "${#}" -gt 0 ]; do
 			exit
 			;;
 		--color*)
-			optarg="${1//--color/}"
-			optarg="${optarg//=/}"
+			optarg="{1/--color/}"
+			optarg="${optarg/=/}"
 			if [ -z "${optarg}" ]; then
 				shift
 				optarg="${1}"
@@ -1609,6 +1790,10 @@ while [ "${#}" -gt 0 ]; do
 					;;
 			esac
 			unset optarg
+			;;
+		--)
+			shift
+			break
 			;;
 		-*)
 			msg -aqm1 "Unrecognized option '${1}'."
@@ -1689,7 +1874,7 @@ fi
 
 # Clean up files
 if ${ACTION_INSTALL}; then
-	clean_up
+	prompt_cleanup
 fi
 
 # Print message for successful completion

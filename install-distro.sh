@@ -127,7 +127,7 @@ post_config_actions() {
 	if [ -f "${ROOTFS_DIRECTORY}/etc/locale.gen" ] && [ -x "${ROOTFS_DIRECTORY}/sbin/dpkg-reconfigure" ]; then
 		msg -t "Hold on while I generate the locales for you."
 		sed -i -E 's/#[[:space:]]?(en_US.UTF-8[[:space:]]+UTF-8)/\1/g' "${ROOTFS_DIRECTORY}/etc/locale.gen"
-		if distro_exec locale-gen &>>"${LOG_FILE}"; then # DEBIAN_FRONTEND=noninteractive /sbin/dpkg-reconfigure locales &>>"${LOG_FILE}"
+		if distro_exec locale-gen >>"${LOG_FILE}" 2>&1; then # DEBIAN_FRONTEND=noninteractive /sbin/dpkg-reconfigure locales >>"${LOG_FILE}" 2>&1
 			msg -s "Done, the locales are ready!"
 		else
 			msg -e "Sorry, I failed to generate the locales."
