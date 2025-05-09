@@ -179,7 +179,7 @@ download_rootfs_archive() {
 			mv "${tmp_dload}" "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1
 			msg -s "Great, the rootfs download is complete!"
 		else
-			remove "${tmp_dload}" >>"${LOG_FILE}" 2>&1
+			# remove "${tmp_dload}" >>"${LOG_FILE}" 2>&1
 			msg -qm0 "Sorry, have I failed to download the rootfs archive."
 		fi
 	fi
