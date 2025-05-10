@@ -1736,7 +1736,7 @@ ARGS=()
 while [ "${#}" -gt 0 ]; do
 	case "${1}" in
 		-d | --directory*)
-			optarg="{1/--directory/}"
+			optarg="${1/--directory/}"
 			optarg="${optarg/=/}"
 			if [ "${optarg}" = "-d" ] || [ -z "${optarg}" ]; then
 				shift
@@ -1773,7 +1773,7 @@ while [ "${#}" -gt 0 ]; do
 			exit
 			;;
 		--color*)
-			optarg="{1/--color/}"
+			optarg="${1/--color/}"
 			optarg="${optarg/=/}"
 			if [ -z "${optarg}" ]; then
 				shift
