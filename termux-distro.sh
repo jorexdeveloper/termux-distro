@@ -249,7 +249,9 @@ create_rootfs_launcher() {
 		#                                                                              #
 		################################################################################
 
+		# Disable termux-exec
 		unset LD_PRELOAD
+
 		program_name="$(basename "${DISTRO_LAUNCHER}")"
 		working_dir=""
 		home_dir=""
@@ -582,6 +584,12 @@ create_rootfs_launcher() {
 		    user_name="${DEFAULT_LOGIN}"
 		fi
 
+		# Check if user exists
+		if ! [ -e "${ROOTFS_DIRECTORY}/etc/passwd" ] || ! grep -q "\${user_name}" "${ROOTFS_DIRECTORY}/etc/passwd" >/dev/null 2>&1; then
+		    echo "User '\${user_name}' does not exist in ${DISTRO_NAME}."
+		    exit 1
+		fi
+
 		# Set home directory
 		if [ -z "\${home_dir}" ]; then
 		    if [ "\${user_name}" = "root" ]; then
@@ -590,8 +598,10 @@ create_rootfs_launcher() {
 		        home_dir="/home/\${user_name}"
 		    fi
 		fi
+
+		# Set home directory in environment
 		env_vars=("HOME=\${home_dir}" "\${env_vars[@]}")
-		mkdir -p "\${home_dir}" >/dev/null 2>&1
+		mkdir -p "${ROOTFS_DIRECTORY}\${home_dir}" >/dev/null 2>&1
 
 		# Prevent running as root
 		if [ "\${EUID}" = "0" ] || [ "\$(id -u)" = "0" ]; then
@@ -617,7 +627,7 @@ create_rootfs_launcher() {
 		        set -- login "\${user_name}"
 		    else
 		        echo "Couldn't find any login command in the guest rootfs."
-		        echo "See '\${program_name} --help' for more information."
+		        echo "See '\${program_name} --help' to learn how to run programs without logging in."
 		        exit 1
 		    fi
 		fi
@@ -703,7 +713,7 @@ create_rootfs_launcher() {
 		if ! [ -d "${ROOTFS_DIRECTORY}/tmp" ]; then
 		    mkdir -p "${ROOTFS_DIRECTORY}/tmp"
 		fi
-		chmod 1777 "${ROOTFS_DIRECTORY}/tmp"
+		chmod 1777 "${ROOTFS_DIRECTORY}/tmp" >/dev/null 2&>1
 
 		# Add host system specific files and directories
 		if ! "\${isolated_env}"; then
