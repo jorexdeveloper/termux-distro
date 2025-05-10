@@ -585,7 +585,7 @@ create_rootfs_launcher() {
 		fi
 
 		# Check if user exists
-		if ! [ -e "${ROOTFS_DIRECTORY}/etc/passwd" ] || ! grep -q "\${user_name}" "${ROOTFS_DIRECTORY}/etc/passwd" >/dev/null 2>&1; then
+		if ! [ -e "${ROOTFS_DIRECTORY}/etc/passwd" ] || ! grep -qE "^\${user_name}:" "${ROOTFS_DIRECTORY}/etc/passwd" >/dev/null 2>&1; then
 		    echo "User '\${user_name}' does not exist in ${DISTRO_NAME}."
 		    exit 1
 		fi
