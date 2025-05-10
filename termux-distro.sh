@@ -22,7 +22,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.       #
 #                                                                              #
 ################################################################################
-# shellcheck disable=SC2155
+# shellcheck disable=SC2155 disable=SC2154
 
 ################################################################################
 # Prevents running this program in the wrong environment.                      #
@@ -180,7 +180,6 @@ download_rootfs_archive() {
 			mv "${tmp_dload}" "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1
 			msg -s "Great, the rootfs download is complete!"
 		else
-			# remove "${tmp_dload}" >>"${LOG_FILE}" 2>&1
 			msg -qm0 "Sorry, have I failed to download the rootfs archive."
 		fi
 	fi
@@ -208,7 +207,6 @@ extract_rootfs_archive() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
 		msg -t "Now, grab a coffee while I extract the rootfs archive."
 		msg "This will take a while."
-		# shellcheck disable=SC2154
 		trap 'e=${?}; msg -e "Extraction process interupted. Clearing cache.                 "; echo -ne "${N}${V}"; remove "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1; exit ${e}' HUP INT TERM
 		mkdir -p "${ROOTFS_DIRECTORY}"
 		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --auto-compress --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far.%*\r${N}${V}" >>"${LOG_FILE}" 2>&1; then
@@ -377,15 +375,15 @@ create_rootfs_launcher() {
 		            fi
 		            kernel_release="\${optarg}"
 		            ;;
-		        --rename*)
+		        -r | --rename*)
 		            optarg="\${1/--rename/}"
 		            optarg="\${optarg/=/}"
-		            if [ -z "\${optarg}" ]; then
+		            if [ "\${optarg}" = "-r" ] || [ -z "\${optarg}" ]; then
 		                shift
 		                optarg="\${1}"
 		            fi
 		            if [ -z "\${optarg}" ]; then
-		                echo "Option '--rename' requires an argument."
+		                echo "Option '-r' or '--rename' requires an argument."
 		                exit 1
 		            fi
 		            if ! [ -e "${ROOTFS_DIRECTORY}" ]; then
@@ -417,15 +415,15 @@ create_rootfs_launcher() {
 		                exit 1
 		            fi
 		            ;;
-		        --backup*)
+		        -b | --backup*)
 		            optarg="\${1/--backup/}"
 		            optarg="\${optarg/=/}"
-		            if [ -z "\${optarg}" ]; then
+		            if [ "\${optarg}" = "-b" ] || [ -z "\${optarg}" ]; then
 		                shift
 		                optarg="\${1}"
 		            fi
 		            if [ -z "\${optarg}" ]; then
-		                echo "Option '--backup' requires an argument."
+		                echo "Option '-b' or '--backup' requires an argument."
 		                exit 1
 		            fi
 		            if ! [ -e "${ROOTFS_DIRECTORY}" ]; then
@@ -455,15 +453,15 @@ create_rootfs_launcher() {
 		                exit 1
 		            fi
 		            ;;
-		        --restore*)
+		        -R | --restore*)
 		            optarg="\${1/--restore/}"
 		            optarg="\${optarg/=/}"
-		            if [ -z "\${optarg}" ]; then
+		            if [ "\${optarg}" = "-R" ] || [ -z "\${optarg}" ]; then
 		                shift
 		                optarg="\${1}"
 		            fi
 		            if [ -z "\${optarg}" ]; then
-		                echo "Option '--restore' requires an argument."
+		                echo "Option '-R' or '--restore' requires an argument."
 		                exit 1
 		            fi
 		            rmdir "${ROOTFS_DIRECTORY}" >/dev/null 2>&1
@@ -482,7 +480,7 @@ create_rootfs_launcher() {
 		                exit 1
 		            fi
 		            ;;
-		        --uninstall)
+		        -u | --uninstall)
 		            if [ -d "${ROOTFS_DIRECTORY}" ]; then
 		                echo "You are about to uninstall ${DISTRO_NAME} from:"
 		                echo "  ⇒ '${ROOTFS_DIRECTORY}'."
@@ -541,13 +539,13 @@ create_rootfs_launcher() {
 		            echo "      --kernel STRING        Set the current kernel release."
 		            echo ""
 		            echo "MANAGEMENT OPTIONS:"
-		            echo "      --rename PATH          Rename the rootfs directory."
-		            echo "      --backup FILE [DIRS]   Backup the rootfs directory excluding DIRS."
+		            echo "  -r, --rename PATH          Rename the rootfs directory."
+		            echo "  -b, --backup FILE [DIRS]   Backup the rootfs directory excluding DIRS."
 		            echo "                             The backup is performed as a TAR archive and"
 		            echo "                             compression is determined by the output file"
 		            echo "                             extension."
-		            echo "      --restore FILE         Restore the rootfs directory from TAR archive."
-		            echo "      --uninstall            Uninstall ${DISTRO_NAME}."
+		            echo "  -R, --restore FILE         Restore the rootfs directory from TAR archive."
+		            echo "  -u, --uninstall            Uninstall ${DISTRO_NAME}."
 		            echo ""
 		            echo "OTHER OPTIONS:"
 		            echo "  -v, --version              Print program version and exit."
@@ -1623,7 +1621,7 @@ msg() {
 			m)
 				local msgs=(
 					"An active internet connection is required."
-					"Try '${Y}${PROGRAM_NAME} --help${C}' for more information.")
+					"See '${Y}${PROGRAM_NAME} --help${C}' for more information.")
 				extra_msg="${C}${msgs[${OPTARG}]}${N}"
 				continue
 				;;
@@ -1767,7 +1765,7 @@ while [ "${#}" -gt 0 ]; do
 				optarg="${1}"
 			fi
 			if [ -z "${optarg}" ]; then
-				msg -aqm1 "Option '--directory' requires an argument."
+				msg -aqm1 "Option '-d' or '--directory' requires an argument."
 			fi
 			if [ -d "${optarg}" ] && [ -r "${optarg}" ]; then
 				cd "${optarg}" || exit 1
@@ -1815,8 +1813,40 @@ while [ "${#}" -gt 0 ]; do
 			esac
 			unset optarg
 			;;
+		# Developer options to speed up testing
+		-R | --no-safety-check)
+			safety_check=false
+			;;
+		-P | --no-check-pkgs)
+			check_pkgs=false
+			;;
+		-V | --no-verify-rootfs-archive)
+			verify_rootfs_archive=false
+			;;
+		-L | --no-create-rootfs-launcher)
+			create_rootfs_launcher=false
+			;;
+		-K | --no-create-vnc-launcher)
+			create_vnc_launcher=false
+			;;
+		-J | --no-make-configurations)
+			make_configurations=false
+			;;
+		-S | --no-set-user-shell)
+			set_user_shell=false
+			;;
+		-Z | --no-set-zone-info)
+			set_zone_info=false
+			;;
+		-C | --no-prompt-cleanup)
+			prompt_cleanup=false
+			;;
+		-M | --no-complete-msg)
+			complete_msg=false
+			;;
 		--)
 			shift
+			ARGS=("${ARGS[@]}" "${@}")
 			break
 			;;
 		-*)
@@ -1855,8 +1885,9 @@ fi
 # Pre install actions
 if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
 	pre_check_actions # External function
-	safety_check
-	# For some mesaage customizations
+	${safety_check:-:} &&
+		safety_check
+	# For some message customizations
 	if ${ACTION_INSTALL}; then
 		action="install"
 	else
@@ -1866,7 +1897,8 @@ if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
 	distro_banner # External function
 	print_intro
 	check_arch
-	check_pkgs
+	${check_pkgs:-:} &&
+		check_pkgs
 	post_check_actions # External function
 	msg -t "I shall now ${action} ${DISTRO_NAME} in:"
 	msg "⇒ ${Y}${ROOTFS_DIRECTORY}${C}"
@@ -1877,34 +1909,42 @@ if ${ACTION_INSTALL}; then
 	check_rootfs_directory
 	pre_install_actions # External function
 	download_rootfs_archive
-	verify_rootfs_archive
+	${verify_rootfs_archive:-:} &&
+		verify_rootfs_archive
 	extract_rootfs_archive
 	post_install_actions # External function
 fi
 
 # Create launchers
 if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
-	create_rootfs_launcher
-	create_vnc_launcher
+	${create_rootfs_launcher:-:} &&
+		create_rootfs_launcher
+	${create_vnc_launcher:-:} &&
+		create_vnc_launcher
 fi
 
 # Post install configurations
 if ${ACTION_CONFIGURE}; then
 	pre_config_actions # External function
-	make_configurations
+	${make_configurations:-:} &&
+		make_configurations
 	post_config_actions # External function
-	set_user_shell
-	set_zone_info
+	${set_user_shell:-:} &&
+		set_user_shell
+	${set_zone_info:-:} &&
+		set_zone_info
 fi
 
 # Clean up files
 if ${ACTION_INSTALL}; then
-	prompt_cleanup
+	${prompt_cleanup:-:} &&
+		prompt_cleanup
 fi
 
 # Print message for successful completion
 if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
 	pre_complete_actions # External function
-	complete_msg
+	${complete_msg:-:} &&
+		complete_msg
 	post_complete_actions # External function
 fi
