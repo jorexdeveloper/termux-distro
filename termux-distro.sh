@@ -113,7 +113,7 @@ check_rootfs_directory() {
 				msg -tn "Wait, There is an existing rootfs directory of size: ..."
 				msg -a "\b\b\b${Y}$(du -sh "${ROOTFS_DIRECTORY}" 2>>"${LOG_FILE}" | awk '{print $1}' 2>>"${LOG_FILE}")${C}!"
 				msg "What should I do with it?"
-				msg -l "Use" "Delete" "Abort (default)"
+				msg -l "Use" "${R}Delete${C}" "Exit (default)"
 				msg -n "Select action: "
 				read -ren 1 reply
 				case "${reply}" in
@@ -123,7 +123,7 @@ check_rootfs_directory() {
 						return
 						;;
 					2 | d | D) ;;
-					*) msg -q "Alright, aborting!" ;;
+					*) msg -q "Alright, exiting!" ;;
 				esac
 				unset reply
 			else
@@ -131,9 +131,10 @@ check_rootfs_directory() {
 				return
 			fi
 		else
-			msg -t "Wait, There is a file of size (${Y}$(du -sh "${ROOTFS_DIRECTORY}" 2>>"${LOG_FILE}" | awk '{print $1}' 2>>"${LOG_FILE}")${C}) with the same name as the rootfs directory!"
-			if ! ask -n "Should I delete the it and proceed?"; then
-				msg -q "Alright, aborting!"
+			msg -t "Wait, There is a file of size: ${Y}$(du -sh "${ROOTFS_DIRECTORY}" 2>>"${LOG_FILE}" | awk '{print $1}' 2>>"${LOG_FILE}")${C}"
+			msg "With the same name as the rootfs directory!"
+			if ! ask -n "Should I ${R}delete${C} the it and proceed?"; then
+				msg -q "Alright, exiting!"
 			fi
 		fi
 		msg "Okay, deleting '${Y}${ROOTFS_DIRECTORY}${C}'!"
@@ -155,15 +156,15 @@ download_rootfs_archive() {
 		if [ -e "${ARCHIVE_NAME}" ]; then
 			if [ -f "${ARCHIVE_NAME}" ]; then
 				msg -t "Wait, There is an existing rootfs archive!"
-				if ! ask -n "Should I delete it and download a new one?"; then
+				if ! ask -n "Should I ${R}delete${C} it and download a new one?"; then
 					msg "Okay, lemme use it."
 					KEEP_ROOTFS_ARCHIVE=1
 					return
 				fi
 			else
-				msg -t "Wait, There is a non-file with the same name as the rootfs archive!"
-				if ! ask -n "Should I delete it and proceed?"; then
-					msg -q "Alright, aborting!"
+				msg -t "Wait, There is something with the same name as the rootfs archive!"
+				if ! ask -n "Should I ${R}delete${C} it and proceed?"; then
+					msg -q "Alright, exiting!"
 				fi
 			fi
 			msg "Okay, deleting '${Y}${ARCHIVE_NAME}${C}'."
@@ -205,7 +206,8 @@ verify_rootfs_archive() {
 ################################################################################
 extract_rootfs_archive() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
-		msg -t "Now, grab a coffee while I extract the rootfs archive. This will take a while."
+		msg -t "Now, grab a coffee while I extract the rootfs archive."
+		msg "This will take a while."
 		# shellcheck disable=SC2154
 		trap 'e=${?}; msg -e "Extraction process interupted. Clearing cache.                 "; echo -ne "${N}${V}"; remove "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1; exit ${e}' HUP INT TERM
 		mkdir -p "${ROOTFS_DIRECTORY}"
@@ -249,7 +251,6 @@ create_rootfs_launcher() {
 
 		unset LD_PRELOAD
 		program_name="$(basename "${DISTRO_LAUNCHER}")"
-
 		working_dir=""
 		home_dir=""
 		env_vars=(
@@ -481,7 +482,8 @@ create_rootfs_launcher() {
 		            ;;
 		        --uninstall)
 		            if [ -d "${ROOTFS_DIRECTORY}" ]; then
-		                echo "You are about to uninstall ${DISTRO_NAME} from '${ROOTFS_DIRECTORY}'."
+		                echo "You are about to uninstall ${DISTRO_NAME} from:"
+		                echo "  ⇒ '${ROOTFS_DIRECTORY}'."
 		                echo "This action will delete all files in this directory!"
 		                if read -r -p "Confirm action (y/N): " choice && [[ "\$choice" =~ ^(y|Y) ]]; then
 		                    echo "Uninstalling ${DISTRO_NAME}."
@@ -818,7 +820,7 @@ create_vnc_launcher() {
 		        case "\${reply}" in
 		            y | Y) return ;;
 		        esac
-		        echo "Abort."
+		        echo "Cancelled."
 		        return 1
 		    fi
 		}
@@ -942,16 +944,23 @@ make_configurations() {
 set_user_shell() {
 	if [ -x "${ROOTFS_DIRECTORY}/bin/chsh" ] && {
 		if [ -z "${shell}" ]; then
-			[ -f "${ROOTFS_DIRECTORY}/etc/passwd" ] && local default_shell="$(grep root "${ROOTFS_DIRECTORY}/etc/passwd" | cut -d: -f7)"
-			[ -z "${default_shell}" ] && default_shell="unknown"
-			ask -n -- -t "Do you want to change the default login shell from '${Y}${default_shell}${C}'?"
+			if [ -f "${ROOTFS_DIRECTORY}/etc/passwd" ]; then
+				local default_shell="$(grep "${DEFAULT_LOGIN}" "${ROOTFS_DIRECTORY}/etc/passwd" | cut -d: -f7)"
+			fi
+			if [ -z "${default_shell}" ]; then
+				default_shell="unknown"
+			fi
+			msg -t "Do you want to change the default login shell from:"
+			ask -n -- "⇒ '${Y}${default_shell}${C}'?"
 		fi
 	}; then
 		local shells
 		mapfile -t shells < <(grep '^/bin' "${ROOTFS_DIRECTORY}"/etc/shells 2>>"${LOG_FILE}" | cut -d'/' -f3 2>>"${LOG_FILE}")
 		msg "Installed shells: ${Y}${shells[*]}${C}"
 		msg -n "Enter shell name:"
-		[ "${default_shell}" = "unknown" ] && default_shell="${shells[0]}"
+		if [ "${default_shell}" = "unknown" ]; then
+			default_shell="${shells[0]}"
+		fi
 		read -rep " " -i "$(basename "${default_shell}")" shell
 		shell="$(basename "${shell}")"
 		if [[ ${shells[*]} == *"${shell}"* ]] && [ -x "${ROOTFS_DIRECTORY}/bin/${shell}" ] && {
@@ -976,15 +985,20 @@ set_zone_info() {
 	if [ -x "${ROOTFS_DIRECTORY}/bin/ln" ] && {
 		if [ -z "${zone}" ]; then
 			local default_localtime="$(cat "${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}")"
-			[ -z "${default_localtime}" ] && default_localtime="unknown"
-			ask -n -- -t "Do you want to change the local time from '${Y}${default_localtime}${C}'?"
+			if [ -z "${default_localtime}" ]; then
+				default_localtime="unknown"
+			fi
+			msg -t "Do you want to change the default local time from:"
+			ask -n -- "⇒ '${Y}${default_localtime}${C}'?"
 		fi
 	}; then
-		msg -n "Enter time zone (format='Country/City'):"
-		[ "${default_localtime}" = "unknown" ] && default_localtime="Etc/UTC"
-		read -rep " " -i "${default_localtime}" zone
+		msg -n "Enter time zone (format='Continent/City'):"
+		if [ "${default_localtime}" = "unknown" ]; then
+			default_localtime="$(getprop persist.sys.timezone 2>>"${LOG_FILE}")"
+		fi
+		read -rep " " -i "${default_localtime:-Etc/UTC}" zone
 		if [ -f "${ROOTFS_DIRECTORY}/usr/share/zoneinfo/${zone}" ] && echo "${zone}" >"${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}" && distro_exec "/bin/ln" -fs -T "/usr/share/zoneinfo/${zone}" "/etc/localtime" 2>>"${LOG_FILE}"; then
-			msg -s "The default time zone is now '${Y}${zone}${G}'."
+			msg -s "The default local time is now '${Y}${zone}${G}'."
 		else
 			msg -e "Sorry, have I failed to set the local time to '${Y}${zone}${R}'."
 			ask -n -- "Wanna try again?" && set_zone_info
@@ -998,10 +1012,10 @@ set_zone_info() {
 ################################################################################
 prompt_cleanup() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ] && [ -z "${KEEP_ROOTFS_ARCHIVE}" ] && [ -f "${ARCHIVE_NAME}" ]; then
-		if ask -n -- -t "Can I remove the downloaded the rootfs archive to save space?"; then
+		if ask -n -- -t "Can I ${R}delete${C} the downloaded the rootfs archive to save space?"; then
 			msg "Okay, removing '!{Y}${ARCHIVE_NAME}${C}'"
 			if remove "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1; then
-				msg -s "Done, the rootfs archive is gone!"
+				msg -s "Done, the rootfs archive is removed!"
 			else
 				msg -e "Sorry, have I failed to remove the rootfs archive."
 			fi
@@ -1023,11 +1037,10 @@ complete_msg() {
 	fi
 	msg -st "That's it, we have now successfuly ${name} ${DISTRO_NAME}."
 	msg "You can launch it by executing '${Y}$(basename "${DISTRO_LAUNCHER}")${C}' to login as '${Y}${DEFAULT_LOGIN}${C}'."
-	msg "If you want to login as another user, add the user name as an argument."
-	msg -t "I also think you might need a short form for '${Y}$(basename "${DISTRO_LAUNCHER}")${C}'."
-	msg "So have I created '${Y}$(basename "${DISTRO_SHORTCUT}")${C}' which is shorter."
-	msg -t "If you have further inquiries, read the documentation at:"
-	msg " ⇒ ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
+	msg "To login as another user, add the user name as an argument."
+	msg -t "You can also use '${Y}$(basename "${DISTRO_SHORTCUT}")${C}' as a short form for '${Y}$(basename "${DISTRO_LAUNCHER}")${C}'."
+	msg -t "For more information, visit:"
+	msg "⇒ ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
 
 ################################################################################
@@ -1035,8 +1048,9 @@ complete_msg() {
 ################################################################################
 uninstall_rootfs() {
 	if [ -d "${ROOTFS_DIRECTORY}" ]; then
-		msg -at "You are about to uninstall ${DISTRO_NAME} from '${Y}${ROOTFS_DIRECTORY}${C}'."
-		msg -ae "This action will delete all files in this directory!"
+		msg -at "You are about to uninstall ${DISTRO_NAME} from:"
+		msg "⇒ '${Y}${ROOTFS_DIRECTORY}${C}'."
+		msg -a "This action will ${R}delete${C} all files in this directory!"
 		if ask -n0 -- -a "Confirm action"; then
 			msg -a "Uninstalling ${DISTRO_NAME}."
 			if remove "${ROOTFS_DIRECTORY}" "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" >>"${LOG_FILE}" 2>&1; then
@@ -1844,7 +1858,8 @@ if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
 	check_arch
 	check_pkgs
 	post_check_actions # External function
-	msg -t "I shall now ${action} ${DISTRO_NAME} in '${Y}${ROOTFS_DIRECTORY}${C}'."
+	msg -t "I shall now ${action} ${DISTRO_NAME} in:"
+	msg "⇒ ${Y}${ROOTFS_DIRECTORY}${C}"
 fi
 
 # Install actions
