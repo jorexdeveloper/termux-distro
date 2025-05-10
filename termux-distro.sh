@@ -713,7 +713,7 @@ create_rootfs_launcher() {
 		if ! [ -d "${ROOTFS_DIRECTORY}/tmp" ]; then
 		    mkdir -p "${ROOTFS_DIRECTORY}/tmp"
 		fi
-		chmod 1777 "${ROOTFS_DIRECTORY}/tmp" >/dev/null 2&>1
+		chmod 1777 "${ROOTFS_DIRECTORY}/tmp" >/dev/null 2>&1
 
 		# Add host system specific files and directories
 		if ! "\${isolated_env}"; then
