@@ -464,10 +464,30 @@ create_rootfs_launcher() {
 		                echo "Option '-R' or '--restore' requires an argument."
 		                exit 1
 		            fi
-		            rmdir "${ROOTFS_DIRECTORY}" >/dev/null 2>&1
-		            if [ -e "${ROOTFS_DIRECTORY}" ]; then
-		                echo "'${ROOTFS_DIRECTORY}' already exists, exiting."
+		            if ! [ -e "\${optarg}" ]; then
+		                echo "'\${optarg}' is missing, exiting."
 		                exit 1
+		            fi
+		            if [ -e "${ROOTFS_DIRECTORY}" ] && ! rmdir "${ROOTFS_DIRECTORY}" >/dev/null 2>&1; then
+		                echo "'${ROOTFS_DIRECTORY}' already exists."
+		                echo "  <1> Delete"
+		                echo "  <2> Overwrite "
+		                echo "  <3> Quit (default)"
+		                read -r -p "Select action: " choice
+		                case "\${choice}" in
+		                    1 | d | D)
+		                        echo "Deleting '${ROOTFS_DIRECTORY}'"
+		                        chmod 777 -R "${ROOTFS_DIRECTORY}" >/dev/null 2>&1
+		                        rm -rf "${ROOTFS_DIRECTORY}" || exit 1
+		                        ;;
+		                    2 | o | O)
+		                        echo "Overwriting '${ROOTFS_DIRECTORY}'."
+		                        ;;
+		                    *)
+		                        echo "Operation cancelled."
+		                        exit 1
+		                        ;;
+		                esac
 		            fi
 		            file="\${optarg}"
 		            echo "Restoring ${DISTRO_NAME} from \${file}."
