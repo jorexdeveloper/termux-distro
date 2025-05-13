@@ -2,9 +2,9 @@
 
 ################################################################################
 #                                                                              #
-# Termux Distro Template.                                                      #
+# Termux Distro Backend.                                                       #
 #                                                                              #
-# Template for installing Linux Distro in Termux.                              #
+# Backend for installing a Linux Distro in Termux.                             #
 #                                                                              #
 # Copyright (C) 2023-2025 Jore <https://github.com/jorexdeveloper>             #
 #                                                                              #
@@ -22,10 +22,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.       #
 #                                                                              #
 ################################################################################
-# shellcheck disable=SC2155 disable=SC2154
+# shellcheck disable=SC2155,SC2034,SC2094
 
 ################################################################################
-# Prevents running this program in the wrong environment.                      #
+# Prevents running this program in the wrong environment                       #
 ################################################################################
 safety_check() {
 	if [ "${EUID}" = "0" ] || [ "$(id -u)" = "0" ]; then
@@ -40,7 +40,7 @@ safety_check() {
 }
 
 ################################################################################
-# Prints the distro an introducing message.                                    #
+# Prints an introducing message                                                #
 ################################################################################
 print_intro() {
 	msg -t "Hi, I'm ${AUTHOR}."
@@ -52,14 +52,14 @@ print_intro() {
 # Sets global variables: SYS_ARCH LIB_GCC_PATH                                 #
 ################################################################################
 check_arch() {
-	msg -t "First, lemme check if your device architecture is supported."
+	msg -t "First, lemme check your device architecture."
 	local arch
 	if [ -x "$(command -v getprop)" ]; then
 		arch="$(getprop ro.product.cpu.abi 2>>"${LOG_FILE}")"
 	elif [ -x "$(command -v uname)" ]; then
 		arch="$(uname -m 2>>"${LOG_FILE}")"
 	else
-		msg -q "Sorry, have I failed to get your device architecture."
+		msg -q "I have failed to get your device architecture."
 	fi
 	case "${arch}" in
 		"arm64-v8a" | "armv8l")
@@ -79,55 +79,51 @@ check_arch() {
 # Updates installed packages and checks if the required commands that are not  #
 # pre-installed are installed, if not, attempts to install them                #
 ################################################################################
-check_pkgs() {
+package_check() {
 	msg -t "Now lemme make sure that all your packages are up to date."
-	if [ -x "$(command -v pkg)" ] && pkg update -y < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1 && pkg upgrade -y < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1; then # || apt-get -qq -o=Dpkg::Use-Pty=0 update -y >>"${LOG_FILE}" 2>&1 || apt-get -qq -o=Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" dist-upgrade -y >>"${LOG_FILE}" 2>&1; then
+	msg "This won't take long."
+	if [ -x "$(command -v pkg)" ] && pkg update -qq -y < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1 && pkg upgrade -qq -y < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1; then
 		msg -s "Yup, Everything looks good!"
 	else
-		msg -qm0 "Sorry, have I failed to update your packages."
+		msg -qm0 "I have failed to update your packages."
 	fi
 	msg -t "Lemme also check if all the required packages are installed."
-	for package in awk basename curl du proot pulseaudio readlink realpath sed tar unzip xz; do
+	local package
+	for package in awk basename curl du numfmt proot pulseaudio readlink realpath sed tar tput unzip xz; do
 		if ! [ -x "$(command -v "${package}")" ]; then
 			msg "Oops, looks like '${Y}${package}${C}' is missing! Let me install it now."
-			if pkg install -y "${package}" < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1; then # || apt-get -qq -o=Dpkg::Use-Pty=0 install -y "${package}" >>"${LOG_FILE}" 2>&1; then
+			if pkg install -y "${package}" < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1; then
 				msg -s "Done, '${Y}${package}${G}' is now installed!"
 			else
-				msg -qm0 "Sorry, have I failed to install '${Y}${package}${R}'."
+				msg -qm0 "I have failed to install '${Y}${package}${R}'."
 			fi
 		fi
 	done
 	msg -s "Yup, you have all the required packages!"
-	unset package
 }
 
 ################################################################################
-# Checks if there is an existing rootfs directory, or a file with similar name #
+# Checks if there is anything with the same name as ROOTFS_DIRECTORY           #
 # Sets global variables: KEEP_ROOTFS_DIRECTORY                                 #
 ################################################################################
-check_rootfs_directory() {
-	unset KEEP_ROOTFS_DIRECTORY
+rootfs_directory_check() {
 	if [ -e "${ROOTFS_DIRECTORY}" ]; then
 		if [ -d "${ROOTFS_DIRECTORY}" ]; then
 			if [ -n "$(ls -UA "${ROOTFS_DIRECTORY}" 2>>"${LOG_FILE}")" ]; then
-				msg -tn "Wait, There is an existing rootfs directory of size: ..."
-				msg -a "\b\b\b${Y}$(du -sh "${ROOTFS_DIRECTORY}" 2>>"${LOG_FILE}" | awk '{print $1}' 2>>"${LOG_FILE}")${C}!"
-				msg "What should I do with it?"
-				msg -l "Use" "${R}Delete${C}" "Exit (default)"
-				msg -n "Select action: "
-				read -ren 1 reply
-				case "${reply}" in
-					1 | u | U)
+				msg -tn "Wait, There is an existing rootfs directory of size: …"
+				msg -a "\b${Y}$(du -sh "${ROOTFS_DIRECTORY}" 2>>"${LOG_FILE}" | awk '{print $1}' 2>>"${LOG_FILE}")${C}!"
+				choose -d1 -m "What should I do with it?" -p "Select action" \
+					"use" "delete"
+				case "${?}" in
+					1)
 						msg "Okay, I shall proceed with it."
 						KEEP_ROOTFS_DIRECTORY=1
 						return
 						;;
-					2 | d | D) ;;
-					*) msg -q "Alright, exiting!" ;;
+					2) ;;
 				esac
-				unset reply
 			else
-				rmdir "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1
+				remove "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1 || error
 				return
 			fi
 		else
@@ -141,7 +137,7 @@ check_rootfs_directory() {
 		if remove "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1; then
 			msg -s "Done, let's proceed."
 		else
-			msg -q "Sorry, have I failed to delete '${Y}${ROOTFS_DIRECTORY}${R}'."
+			msg -q "I have failed to delete '${Y}${ROOTFS_DIRECTORY}${R}'."
 		fi
 	fi
 }
@@ -151,16 +147,12 @@ check_rootfs_directory() {
 # Sets global variables: KEEP_ROOTFS_ARCHIVE                                   #
 ################################################################################
 download_rootfs_archive() {
-	unset KEEP_ROOTFS_ARCHIVE
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
 		if [ -e "${ARCHIVE_NAME}" ]; then
 			if [ -f "${ARCHIVE_NAME}" ]; then
-				msg -t "Wait, There is an existing rootfs archive!"
-				if ! ask -n "Should I ${R}delete${C} it and download a new one?"; then
-					msg "Okay, lemme use it."
-					KEEP_ROOTFS_ARCHIVE=1
-					return
-				fi
+				msg -t "Lemme use the existing rootfs archive."
+				KEEP_ROOTFS_ARCHIVE=1
+				return
 			else
 				msg -t "Wait, There is something with the same name as the rootfs archive!"
 				if ! ask -n "Should I ${R}delete${C} it and proceed?"; then
@@ -171,16 +163,21 @@ download_rootfs_archive() {
 			if remove "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1; then
 				msg -s "Done, let's proceed."
 			else
-				msg -q "Sorry, have I failed to delete '${Y}${ARCHIVE_NAME}${R}'."
+				msg -q "I have failed to delete '${Y}${ARCHIVE_NAME}${R}'."
 			fi
 		fi
 		local tmp_dload="${ARCHIVE_NAME}.pending"
-		msg -t "Alright, now lemme download the rootfs archive. This might take a while."
-		if curl --disable --fail --location --progress-meter --retry-connrefused --retry 0 --retry-delay 3 --continue-at - --output "${tmp_dload}" "${BASE_URL}/${ARCHIVE_NAME}"; then
+		if [ -z "${KEEP_ROOTFS_ARCHIVE}" ]; then
+			msg -t "Alright, now lemme download the rootfs archive."
+		else
+			msg -t "Lemme download a new rootfs archive."
+		fi
+		msg "The archive size is '${Y}$({ curl --disable --fail --silent --head "${BASE_URL}/${ARCHIVE_NAME}" || echo -n "Content-Length 0"; } | tr -d '\r' | awk '/[Cc]ontent-[Ll]ength/{print $2}' | numfmt --to=iec --suffix=B)${C}', this might take a while."
+		if curl --disable --fail --location --progress-bar --retry-connrefused --retry 0 --retry-delay 3 --continue-at - --output "${tmp_dload}" "${BASE_URL}/${ARCHIVE_NAME}"; then
 			mv "${tmp_dload}" "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1
 			msg -s "Great, the rootfs download is complete!"
 		else
-			msg -qm0 "Sorry, have I failed to download the rootfs archive."
+			msg -qm0 "I have failed to download the rootfs archive."
 		fi
 	fi
 }
@@ -195,7 +192,15 @@ verify_rootfs_archive() {
 			msg -s "Yup, the rootfs archive looks fine!"
 			return
 		else
-			msg -q "Sorry, the rootfs archive is corrupted and not safe for installation."
+			msg -e "The rootfs archive is corrupted and not safe for installation."
+			if [ -n "${KEEP_ROOTFS_ARCHIVE}" ]; then
+				if remove "${ARCHIVE_NAME}"; then
+					download_rootfs_archive
+				else
+					msg -q "I have failed to delete the corrupted rootfs archive."
+				fi
+			fi
+			error
 		fi
 	fi
 }
@@ -207,15 +212,15 @@ extract_rootfs_archive() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ]; then
 		msg -t "Now, grab a coffee while I extract the rootfs archive."
 		msg "This will take a while."
-		trap 'e=${?}; msg -e "Extraction process interupted. Clearing cache.                 "; echo -ne "${N}${V}"; remove "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1; exit ${e}' HUP INT TERM
+		trap 'msg -e "Extraction process interupted. Clearing cache.                 "; echo -ne "${N}${V}"; remove "${ROOTFS_DIRECTORY}" >>"${LOG_FILE}" 2>&1; exit 130' INT
 		mkdir -p "${ROOTFS_DIRECTORY}"
-		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --auto-compress --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far.%*\r${N}${V}" >>"${LOG_FILE}" 2>&1; then
+		if proot --link2symlink tar --strip="${ARCHIVE_STRIP_DIRS}" --delay-directory-restore --preserve-permissions --warning=no-unknown-keyword --extract --auto-compress --exclude="dev" --file="${ARCHIVE_NAME}" --directory="${ROOTFS_DIRECTORY}" --checkpoint=1024 --checkpoint-action=ttyout="${I}${Y}   I have extracted %{}T in %ds so far  %*\r${N}${V}" >>"${LOG_FILE}" 2>&1; then
 			msg -s "Finally, I am done extracting the rootfs archive!."
+			trap - INT
 		else
 			remove "${ROOTFS_DIRECTORY}" &>>"${LOG_FILE}"
-			msg -q "Sorry, have I failed to extract the rootfs archive."
+			msg -q "I have failed to extract the rootfs archive."
 		fi
-		trap - HUP INT TERM
 	fi
 }
 
@@ -470,9 +475,9 @@ create_rootfs_launcher() {
 		            fi
 		            if [ -e "${ROOTFS_DIRECTORY}" ] && ! rmdir "${ROOTFS_DIRECTORY}" >/dev/null 2>&1; then
 		                echo "'${ROOTFS_DIRECTORY}' already exists."
-		                echo "  <1> Delete"
-		                echo "  <2> Overwrite "
-		                echo "  <3> Quit (default)"
+		                echo "  <1> delete"
+		                echo "  <2> overwrite "
+		                echo "  <3> quit (default)"
 		                read -r -p "Select action: " choice
 		                case "\${choice}" in
 		                    1 | d | D)
@@ -571,7 +576,7 @@ create_rootfs_launcher() {
 		            echo "  -v, --version              Print program version and exit."
 		            echo "  -h, --help                 Print help message and exit."
 		            echo ""
-		            echo "For more information, visit:"
+		            echo "For further inquiries, visit:"
 		            echo "  ⇒ ${GITHUB}/${DISTRO_REPOSITORY}"
 		            exit
 		            ;;
@@ -817,7 +822,7 @@ create_rootfs_launcher() {
 	if ln -sfT "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" >>"${LOG_FILE}" 2>&1 && termux-fix-shebang "${DISTRO_LAUNCHER}" >>"${LOG_FILE}" 2>&1 && chmod 700 "${DISTRO_LAUNCHER}" >>"${LOG_FILE}" 2>&1; then
 		msg -s "Done, launcher created successfully!"
 	else
-		msg -q "Sorry, have I failed to create the ${DISTRO_NAME} launcher."
+		msg -q "I have failed to create the ${DISTRO_NAME} launcher."
 	fi
 }
 
@@ -828,7 +833,7 @@ create_vnc_launcher() {
 	msg -t "Lemme create a vnc wrapper in ${DISTRO_NAME}."
 	local vnc_launcher="${ROOTFS_DIRECTORY}/usr/local/bin/vnc"
 	mkdir -p "${ROOTFS_DIRECTORY}/usr/local/bin" >>"${LOG_FILE}" 2>&1 && cat >"${vnc_launcher}" 2>>"${LOG_FILE}" <<-EOF
-		#!/bin/bash
+		#!/usr/bin/bash
 
 		################################################################################
 		#                                                                              #
@@ -947,7 +952,7 @@ create_vnc_launcher() {
 	if chmod 700 "${vnc_launcher}" >>"${LOG_FILE}" 2>&1; then
 		msg -s "Done, wrapper created successfully!"
 	else
-		msg -e "Sorry, have I failed to create the vnc wrapper."
+		msg -e "I have failed to create the vnc wrapper."
 	fi
 }
 
@@ -956,6 +961,7 @@ create_vnc_launcher() {
 ################################################################################
 make_configurations() {
 	msg -t "Now, lemme make some configurations for you."
+	local config status
 	for config in sys_setup ids_setup extra_setups env_setup; do
 		status="$(${config} 2>>"${LOG_FILE}")"
 		if [ -n "${status//-0/}" ]; then
@@ -963,7 +969,6 @@ make_configurations() {
 		fi
 	done
 	msg -s "Hopefully, that fixes some startup issues."
-	unset config status
 }
 
 ################################################################################
@@ -973,41 +978,35 @@ set_user_shell() {
 	if [ -x "${ROOTFS_DIRECTORY}/bin/chsh" ] && {
 		if [ -z "${shell}" ]; then
 			if [ -f "${ROOTFS_DIRECTORY}/etc/passwd" ]; then
-				local default_shell="$(grep "${DEFAULT_LOGIN}" "${ROOTFS_DIRECTORY}/etc/passwd" | cut -d: -f7)"
+				local default_shell="$(basename "$(grep -E "^${DEFAULT_LOGIN}:" "${ROOTFS_DIRECTORY}/etc/passwd" | cut -d: -f7)")"
 			fi
 			if [ -z "${default_shell}" ]; then
-				default_shell="unknown"
+				return
 			fi
-			msg -t "Do you want to change the default login shell from:"
-			ask -n -- "⇒ '${Y}${default_shell}${C}'?"
+			ask -n -- -t "Should I change the login shell from '${Y}${default_shell}${C}'?"
 		fi
 	}; then
-		local shells
-		mapfile -t shells < <(grep '^/bin' "${ROOTFS_DIRECTORY}"/etc/shells 2>>"${LOG_FILE}" | cut -d'/' -f3 2>>"${LOG_FILE}")
+		local shell shells
+		mapfile -t shells < <(sed -E '/^#.*/d; s:^/([a-z]+/)*::' <"${ROOTFS_DIRECTORY}"/etc/shells | sort -u)
 		msg "Installed shells: ${Y}${shells[*]}${C}"
-		msg -n "Enter shell name:"
-		if [ "${default_shell}" = "unknown" ]; then
-			default_shell="${shells[0]}"
-		fi
-		read -rep " " -i "$(basename "${default_shell}")" shell
-		shell="$(basename "${shell}")"
+		msg -n "Input shell name"
+		read -rep ": " -i "${default_shell}" shell
 		if [[ ${shells[*]} == *"${shell}"* ]] && [ -x "${ROOTFS_DIRECTORY}/bin/${shell}" ] && {
-			distro_exec /bin/chsh -s "/bin/${shell}" root >>"${LOG_FILE}" 2>&1
+			distro_exec /bin/chsh -s "/usr/bin/${shell}" root >>"${LOG_FILE}" 2>&1
 			if [ "${DEFAULT_LOGIN}" != "root" ]; then
-				distro_exec /bin/chsh -s "/bin/${shell}" "${DEFAULT_LOGIN}" >>"${LOG_FILE}" 2>&1
+				distro_exec /bin/chsh -s "/usr/bin/${shell}" "${DEFAULT_LOGIN}" >>"${LOG_FILE}" 2>&1
 			fi
 		}; then
-			msg -s "The default login shell is now '${Y}/bin/${shell}${G}'."
+			msg -s "The login shell is now '${Y}${shell}${G}'."
 		else
-			msg -e "Sorry, have I failed to set the default login shell to '${Y}${shell}${R}'."
-			ask -n -- "Wanna try again?" && set_user_shell
+			msg -e "I have failed to set the login shell to '${Y}${shell}${R}'."
+			ask -n "Wanna try again?" && set_user_shell
 		fi
-		unset shell
 	fi
 }
 
 ################################################################################
-# Sets a custom time zone in distro                                            #
+# Sets custom local time in distro                                             #
 ################################################################################
 set_zone_info() {
 	if [ -x "${ROOTFS_DIRECTORY}/bin/ln" ] && {
@@ -1016,39 +1015,36 @@ set_zone_info() {
 			if [ -z "${default_localtime}" ]; then
 				default_localtime="unknown"
 			fi
-			msg -t "Do you want to change the default local time from:"
-			ask -n -- "⇒ '${Y}${default_localtime}${C}'?"
+			ask -n -- -t "Should I change the local time from '${Y}${default_localtime}${C}'?"
 		fi
 	}; then
-		msg -n "Enter time zone (format='Continent/City'):"
-		if [ "${default_localtime}" = "unknown" ]; then
-			default_localtime="$(getprop persist.sys.timezone 2>>"${LOG_FILE}")"
-		fi
-		read -rep " " -i "${default_localtime:-Etc/UTC}" zone
-		if [ -f "${ROOTFS_DIRECTORY}/usr/share/zoneinfo/${zone}" ] && echo "${zone}" >"${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}" && distro_exec "/bin/ln" -fs -T "/usr/share/zoneinfo/${zone}" "/etc/localtime" 2>>"${LOG_FILE}"; then
-			msg -s "The default local time is now '${Y}${zone}${G}'."
+		msg -n "Input local time"
+		default_localtime="$(getprop persist.sys.timezone 2>>"${LOG_FILE}")"
+		local zone
+		read -rep ": " -i "${default_localtime:-Etc/UTC}" zone
+		if [ -f "${ROOTFS_DIRECTORY}/usr/share/zoneinfo/${zone}" ] && echo "${zone}" >"${ROOTFS_DIRECTORY}/etc/timezone" 2>>"${LOG_FILE}" && distro_exec "/bin/ln" -sfT "/usr/share/zoneinfo/${zone}" "/etc/localtime" 2>>"${LOG_FILE}"; then
+			msg -s "The local time is now '${Y}${zone}${G}'."
 		else
-			msg -e "Sorry, have I failed to set the local time to '${Y}${zone}${R}'."
-			ask -n -- "Wanna try again?" && set_zone_info
+			msg -e "I have failed to set the local time to '${Y}${zone}${R}'."
+			ask -n "Wanna try again?" && set_zone_info
 		fi
-		unset zone
 	fi
 }
 
 ################################################################################
-# Makes the necessary clean ups                                                #
+# Makes some clean ups                                                         #
 ################################################################################
 prompt_cleanup() {
 	if [ -z "${KEEP_ROOTFS_DIRECTORY}" ] && [ -z "${KEEP_ROOTFS_ARCHIVE}" ] && [ -f "${ARCHIVE_NAME}" ]; then
-		if ask -n -- -t "Can I ${R}delete${C} the downloaded the rootfs archive to save space?"; then
+		if ask -n -- -t "Should I ${R}remove${C} the rootfs archive to save space?"; then
 			msg "Okay, removing '!{Y}${ARCHIVE_NAME}${C}'"
 			if remove "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1; then
 				msg -s "Done, the rootfs archive is removed!"
 			else
-				msg -e "Sorry, have I failed to remove the rootfs archive."
+				msg -e "I have failed to remove the rootfs archive."
 			fi
 		else
-			msg "Alright, lemme leave the rootfs archive."
+			msg "Okay, lemme leave the rootfs archive."
 		fi
 	fi
 }
@@ -1056,18 +1052,25 @@ prompt_cleanup() {
 ################################################################################
 # Prints a message for successful installation with other useful information   #
 ################################################################################
-complete_msg() {
-	# Just for customizing message
+show_complete_msg() {
 	if [ "${action}" = "install" ]; then
 		local name="installed"
 	else
 		local name="configured"
 	fi
-	msg -st "That's it, we have now successfuly ${name} ${DISTRO_NAME}."
-	msg "You can launch it by executing '${Y}$(basename "${DISTRO_LAUNCHER}")${C}' to login as '${Y}${DEFAULT_LOGIN}${C}'."
-	msg "To login as another user, add the user name as an argument."
-	msg -t "You can also use '${Y}$(basename "${DISTRO_SHORTCUT}")${C}' as a short form for '${Y}$(basename "${DISTRO_LAUNCHER}")${C}'."
-	msg -t "For more information, visit:"
+	msg -st "That's it, ${DISTRO_NAME} is now ${name}."
+	msg "To login as '${Y}${DEFAULT_LOGIN}${C}', just execute '${Y}$(basename "${DISTRO_LAUNCHER}")${C}' or '${Y}$(basename "${DISTRO_SHORTCUT}")${C}'."
+	msg "See '${Y}$(basename "${DISTRO_LAUNCHER}") --help${C}' for more information."
+	if ${GUI_INSTALLED:-false}; then
+		msg -N "To start the Desktop, just login and execute '${Y}vnc${C}'."
+		msg "See '${Y}vnc help${C}' for more information."
+		msg -N "Then open any VNC viewer app and connect to your Desktop."
+		msg -N "\tName: ${Y}${DISTRO_NAME} Desktop${C}"
+		msg -- "\tHost: ${Y}localhost${C}"
+		msg -- "\tPort: ${Y}5900${C}"
+		msg -N "Then input the password you set on first run of '${Y}vnc${C}'."
+	fi
+	msg -t "For further inquiries, visit:"
 	msg "⇒ ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
 
@@ -1079,7 +1082,7 @@ uninstall_rootfs() {
 		msg -at "You are about to uninstall ${DISTRO_NAME} from:"
 		msg "⇒ '${Y}${ROOTFS_DIRECTORY}${C}'."
 		msg -a "This action will ${R}delete${C} all files in this directory!"
-		if ask -n0 -- -a "Confirm action"; then
+		if ask -n -- -a "Confirm action"; then
 			msg -a "Uninstalling ${DISTRO_NAME}."
 			if remove "${ROOTFS_DIRECTORY}" "${DISTRO_LAUNCHER}" "${DISTRO_SHORTCUT}" >>"${LOG_FILE}" 2>&1; then
 				msg -as "${DISTRO_NAME} uninstall complete."
@@ -1112,7 +1115,7 @@ print_usage() {
 	msg -a "Usage: ${Y}${PROGRAM_NAME}${C} [OPTION] [DIRECTORY]"
 	msg -aN "Installs ${DISTRO_NAME} in DIRECTORY."
 	msg -a "(default='${Y}${DEFAULT_ROOTFS_DIR}${C}')"
-	msg -aN "Options:"
+	msg -aN "OPTIONS:"
 	msg -- "-d, --directory[=PATH] Change directory to PATH before execution."
 	msg -- "    --install-only     Installation only (use with caution)."
 	msg -- "    --config-only      Configurations only (if already installed)."
@@ -1123,10 +1126,10 @@ print_usage() {
 	msg -- "-l, --log              Log error messages to ${Y}${PROGRAM_NAME%.sh}.log${C}."
 	msg -- "-v, --version          Print program version and exit."
 	msg -- "-h, --help             Print help message and exit."
-	msg -aN "Note:"
+	msg -aN "NOTE:"
 	msg -- "The install directory must be within '${Y}${TERMUX_FILES_DIR}${C}'"
 	msg -- "(or its sub-directories) to prevent permission issues."
-	msg -aN "For more information, visit:"
+	msg -aN "For further inquiries, visit:"
 	msg -- "⇒ ${B}${U}${GITHUB}/${DISTRO_REPOSITORY}${L}${C}"
 }
 
@@ -1416,21 +1419,23 @@ env_setup() {
 	} >>"${env_file}"
 	status+="-${?}"
 	echo -e "\n# Host system variables" >>"${env_file}"
+	local var
 	for var in COLORTERM ANDROID_DATA ANDROID_ROOT ANDROID_ART_ROOT ANDROID_I18N_ROOT ANDROID_RUNTIME_ROOT ANDROID_TZDATA_ROOT BOOTCLASSPATH DEX2OATBOOTCLASSPATH; do
 		if [ -n "${!var}" ]; then
 			echo "export ${var}=\"${!var}\"" >>"${env_file}"
 		fi
 	done
 	status+="-${?}"
-	unset var
 	echo -e "\n### end ${marker} ###\n" >>"${env_file}"
 	# Fix PATH in some configuration files.
+	# local f
 	# for f in /etc/bash.bashrc /etc/profile; do # /etc/login.defs
-	# 	! [ -e "${ROOTFS_DIRECTORY}${f}" ] && continue
+	# 	if ! [ -e "${ROOTFS_DIRECTORY}${f}" ]; then
+	# 		continue
+	# 	fi
 	# 	sed -i -E "s@\<(PATH=)(\"?[^\"[:space:]]+(\"|\$|\>))@\1\"${DEFAULT_PATH}\"@g" "${ROOTFS_DIRECTORY}${f}"
 	# done
 	# status+="-${?}"
-	unset f
 	echo -n "${status}"
 }
 
@@ -1449,6 +1454,7 @@ ids_setup() {
 		echo "aid_$(id -un):*:18446:0:99999:7:::" >>"${ROOTFS_DIRECTORY}/etc/shadow"
 	fi
 	status+="-${?}"
+	local group_name group_id
 	while read -r group_name group_id; do
 		if ! grep -qe "${group_name}" "${ROOTFS_DIRECTORY}/etc/group"; then
 			echo "aid_${group_name}:x:${group_id}:root,aid_$(id -un)" >>"${ROOTFS_DIRECTORY}/etc/group"
@@ -1457,7 +1463,6 @@ ids_setup() {
 			echo "aid_${group_name}:*::root,aid_$(id -un)" >>"${ROOTFS_DIRECTORY}/etc/gshadow"
 		fi
 	done < <(paste <(id -Gn | tr ' ' '\n') <(id -G | tr ' ' '\n'))
-	unset group_name group_id
 	status+="-${?}"
 	echo -n "${status}"
 }
@@ -1559,11 +1564,12 @@ distro_exec() {
 # Initializes the color variables                                              #
 ################################################################################
 set_colors() {
-	if [ -x "$(command -v tput)" ] && [ "$(tput colors)" -ge 8 ] && [[ ${COLOR_SUPPORT} =~ "on"|"always"|"auto" ]]; then
+	if ${ENABLE_COLOR} && [ -x "$(command -v tput)" ] && [ "$(tput colors)" -ge 8 ]; then
 		R="$(echo -ne "sgr0\nbold\nsetaf 1" | tput -S)"
 		G="$(echo -ne "sgr0\nbold\nsetaf 2" | tput -S)"
 		Y="$(echo -ne "sgr0\nbold\nsetaf 3" | tput -S)"
 		B="$(echo -ne "sgr0\nbold\nsetaf 4" | tput -S)"
+		M="$(echo -ne "sgr0\nbold\nsetaf 5" | tput -S)"
 		C="$(echo -ne "sgr0\nbold\nsetaf 6" | tput -S)"
 		I="$(tput civis)" # hide cursor
 		V="$(tput cvvis)" # show cursor
@@ -1575,6 +1581,7 @@ set_colors() {
 		G=""
 		Y=""
 		B=""
+		M=""
 		C=""
 		I=""
 		V=""
@@ -1593,6 +1600,99 @@ remove() {
 }
 
 ################################################################################
+# Asks the user to choose from a list of words, then returns the item number   #
+# Allows options (see case inside)                                             #
+# Options after '--' are parsed to msg (see msg description)                   #
+################################################################################
+choose() {
+	local title=""
+	local message=""
+	local prompt="Select option"
+	local default=""
+	local retries=1
+	while getopts ":t:m:p:d:0123456789" opt; do
+		case "${opt}" in
+			t)
+				title="${OPTARG}"
+				continue
+				;;
+			m)
+				message="${OPTARG}"
+				continue
+				;;
+
+			p)
+				prompt="${OPTARG}"
+				continue
+				;;
+			d)
+				default="${OPTARG}"
+				continue
+				;;
+			[0-9])
+				default="${default:-0}"
+				retries=${opt}
+				continue
+				;;
+			*) ;;
+		esac
+	done
+	shift $((OPTIND - 1))
+	unset OPTARG OPTIND opt
+	if [ -n "${title}" ]; then
+		msg -t "${title}"
+	fi
+	if [ -n "${message}" ]; then
+		msg "${message}"
+	fi
+	local q=$((${#} + 1))
+	msg -l"${default:-0}" "${@}" "quit"
+	if [ -n "${prompt}" ]; then
+		msg -n "${prompt}: "
+	fi
+	local choice i arg
+	while true; do
+		read -ren 1 choice
+		if [ -z "${choice}" ] || [ "${choice}" = " " ]; then
+			msg "Choosing default option '${Y}${default}${C}'."
+			choice="${default}"
+		fi
+		case "${choice,,}" in
+			[1-${#}]) return "${choice}" ;;
+			q | "${q}") msg -q "Operation cancelled." ;;
+			*)
+				i=1
+				for arg in "${@,,}"; do
+					if [[ "${arg}" =~ ^-.* ]]; then
+						continue
+					fi
+					if [ "${choice,,}" = "${arg:0:1}" ]; then
+						return ${i}
+					fi
+					((i++))
+				done
+				;;
+		esac
+		if [ -n "${default}" ] && [ "${retries}" -eq 0 ]; then
+			msg "Choosing default option '${Y}${default}${C}'."
+			return "${default}"
+		fi
+		((retries--))
+		msg -n "Try again: "
+	done
+
+}
+
+################################################################################
+# Exits due to unexpected error                                                #
+################################################################################
+error() {
+	msg -e "Exiting due to an unexpected error!"
+	msg -e "Contact ${AUTHOR} at:"
+	msg -q "⇒ ${GITHUB}/${DISTRO_REPOSITORY}"
+}
+
+################################################################################
 # Prints parsed message to the standard output. All messages MUST be printed   #
 # with this function                                                           #
 # Allows options (see case inside)                                             #
@@ -1604,10 +1704,11 @@ msg() {
 	local quit=false
 	local append=false
 	local extra_msg=""
+	local highlight_item=0
 	local list_items=false
 	local lead_newline=false
 	local trail_newline=true
-	while getopts ":tseanNqm:l" opt; do
+	while getopts ":tseanNqm:l0123456789" opt; do
 		case "${opt}" in
 			t)
 				prefix="\n${Y}⇒ "
@@ -1650,6 +1751,10 @@ msg() {
 				color="${G}"
 				continue
 				;;
+			[0-9])
+				highlight_item="${opt}"
+				continue
+				;;
 			*) ;;
 		esac
 	done
@@ -1657,11 +1762,15 @@ msg() {
 	unset OPTARG OPTIND opt
 	if ${list_items}; then
 		local i=1
+		local item
 		for item in "${@}"; do
-			echo -ne "\r${prefix}    ${color}<${Y}${i}${color}> ${item}${postfix}${N}\n"
+			if [ ${i} -eq "${highlight_item}" ]; then
+				echo -ne "\r${prefix}  ${color}<${Y}${i}${color}> ${M}*${Y}${U}${item:0:1}${L}${color}${item:1}${postfix}${N}\n"
+			else
+				echo -ne "\r${prefix}  ${color}<${Y}${i}${color}>  ${Y}${U}${item:0:1}${L}${color}${item:1}${postfix}${N}\n"
+			fi
 			((i++))
 		done
-		unset item
 	else
 		local args
 		local message="${*}"
@@ -1692,55 +1801,58 @@ msg() {
 ################################################################################
 # Asks the user a Y/N question and returns 0/1 respectively                    #
 # Allows options (see case inside)                                             #
-# Options after -- are parsed to msg (see msg description)                     #
+# Options after '--' are parsed to msg (see msg description)                   #
 ################################################################################
 ask() {
-	local prompt
-	local default
+	local prompt="y/n/q"
+	local default=""
 	local retries=1
 	while getopts ":yn0123456789" opt; do
-		case "${opt}" in
+		case "${opt,,}" in
 			y)
-				prompt="Y/n"
+				prompt="Y/n/q"
 				default="Y"
 				continue
 				;;
 			n)
-				prompt="y/N"
+				prompt="y/N/q"
 				default="N"
 				continue
 				;;
 			[0-9])
+				default="${default:-1}"
 				retries=${opt}
 				continue
 				;;
-			*)
-				prompt="y/n"
-				default=""
-				;;
+			*) ;;
 		esac
 	done
 	shift $((OPTIND - 1))
 	unset OPTARG OPTIND opt
+	msg -n "${@}" "(${prompt}): "
+	local reply
 	while true; do
-		msg -n "${@}" "(${prompt}): "
 		read -ren 1 reply
-		if [ -z "${reply}" ]; then
+		if [ -z "${reply}" ] || [ "${reply}" = " " ]; then
+			msg "Choosing default option '${Y}${default}${C}'."
 			reply="${default}"
 		fi
-		case "${reply}" in
-			Y | y) return 0 ;;
-			N | n) return 1 ;;
+		case "${reply,,}" in
+			y) return 0 ;;
+			n) return 1 ;;
+			q) msg -q "Operation cancelled." ;;
 		esac
 		if [ -n "${default}" ] && [ "${retries}" -eq 0 ]; then
-			case "${default}" in
-				y | Y) return 0 ;;
-				n | N) return 1 ;;
+			msg "Choosing default option '${Y}${default}${C}'."
+			case "${default,,}" in
+				y) return 0 ;;
+				n) return 1 ;;
+				q) msg -q "Operation cancelled." ;;
 			esac
 		fi
 		((retries--))
+		msg -n "Try again." "(${prompt}): "
 	done
-	unset reply
 }
 
 ################################################################################
@@ -1757,13 +1869,12 @@ DEFAULT_PATH="/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin:/usr/
 # Output for log messages
 LOG_FILE="/dev/null"
 
-# Enable color in terminals (fd 1 for stdout)
+# Enable color by default
 if [ -t 1 ]; then
-	COLOR_SUPPORT=on
+	ENABLE_COLOR=true
+else
+	ENABLE_COLOR=false
 fi
-
-# Update color variables
-set_colors
 
 # Permissions for new files
 umask 0022
@@ -1822,47 +1933,64 @@ while [ "${#}" -gt 0 ]; do
 				optarg="${1}"
 			fi
 			case "${optarg}" in
-				on | off | always | never)
-					COLOR_SUPPORT="${optarg}"
+				on)
+					if [ -t 1 ]; then
+						ENABLE_COLOR=true
+					else
+						ENABLE_COLOR=false
+					fi
+					set_colors
+					;;
+				always)
+					ENABLE_COLOR=true
+					set_colors
+					;;
+				off | never)
+					ENABLE_COLOR=false
 					set_colors
 					;;
 				"") msg -aqm1 "Option '--color' requires an argument." ;;
 				*)
-					msg -aqm1 "Unrecognized color argument '${optarg}'."
+					msg -aqm1 "Invalid  argument '${optarg}' for '--color'."
 					;;
 			esac
 			unset optarg
 			;;
 		# Developer options to speed up testing
-		-R | --no-safety-check)
+		-S | --no-safety-check)
 			safety_check=false
 			;;
-		-P | --no-check-pkgs)
-			check_pkgs=false
+		-P | --no-package-check)
+			package_check=false
+			;;
+		-C | --no-rootfs-directory-check)
+			rootfs_directory_check=false
+			;;
+		-D | --no-download-rootfs-archive)
+			download_rootfs_archive=false
 			;;
 		-V | --no-verify-rootfs-archive)
 			verify_rootfs_archive=false
 			;;
-		-L | --no-create-rootfs-launcher)
-			create_rootfs_launcher=false
+		-X | --no-extract-rootfs-archive)
+			extract_rootfs_archive=false
 			;;
-		-K | --no-create-vnc-launcher)
-			create_vnc_launcher=false
-			;;
-		-J | --no-make-configurations)
+		-K | --no-make-configurations)
 			make_configurations=false
 			;;
-		-S | --no-set-user-shell)
-			set_user_shell=false
-			;;
-		-Z | --no-set-zone-info)
-			set_zone_info=false
-			;;
-		-C | --no-prompt-cleanup)
-			prompt_cleanup=false
-			;;
-		-M | --no-complete-msg)
-			complete_msg=false
+		-H | --help-dev)
+			msg -a "Usage: ${Y}${PROGRAM_NAME}${C} [OPTION] [DIRECTORY]"
+			msg -aN "These options are for development only, meant to speed up testing of the program, use with caution!"
+			msg -aN "OPTIONS:"
+			msg -- "-S, --no-safety-check            Disable fuction call."
+			msg -- "-P, --no-package-check           Disable fuction call."
+			msg -- "-C, --no-rootfs-directory-check  Disable fuction call."
+			msg -- "-D, --no-verify-download-archive Disable fuction call."
+			msg -- "-V, --no-verify-rootfs-archive   Disable fuction call."
+			msg -- "-X, --no-verify-extract-archive  Disable fuction call."
+			msg -- "-K, --no-make-configurations     Disable fuction call."
+			msg -- "-H, --help-dev                   Show these options."
+			exit
 			;;
 		--)
 			shift
@@ -1886,6 +2014,9 @@ if [ "${#}" -gt 1 ]; then
 	msg -aqm1 "Received too many arguments."
 fi
 
+# Update colors
+set_colors
+
 # Set the rootfs directory
 if [ -n "${1}" ]; then
 	ROOTFS_DIRECTORY="$(realpath "${1}")"
@@ -1905,8 +2036,7 @@ fi
 # Pre install actions
 if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
 	pre_check_actions # External function
-	${safety_check:-:} &&
-		safety_check
+	${safety_check:-:} && safety_check
 	# For some message customizations
 	if ${ACTION_INSTALL}; then
 		action="install"
@@ -1917,8 +2047,16 @@ if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
 	distro_banner # External function
 	print_intro
 	check_arch
-	${check_pkgs:-:} &&
-		check_pkgs
+	${package_check:-:} && package_check &&
+		# Try to re-enable color after package check
+		if ${ENABLE_COLOR} && [ -z "${C}" ]; then
+			set_colors
+			if [ -n "${C}" ]; then
+				clear
+				distro_banner
+				print_intro
+			fi
+		fi
 	post_check_actions # External function
 	msg -t "I shall now ${action} ${DISTRO_NAME} in:"
 	msg "⇒ ${Y}${ROOTFS_DIRECTORY}${C}"
@@ -1926,45 +2064,37 @@ fi
 
 # Install actions
 if ${ACTION_INSTALL}; then
-	check_rootfs_directory
+	${rootfs_directory_check:-:} && rootfs_directory_check
 	pre_install_actions # External function
-	download_rootfs_archive
-	${verify_rootfs_archive:-:} &&
-		verify_rootfs_archive
-	extract_rootfs_archive
+	${download_rootfs_archive:-:} && download_rootfs_archive
+	${verify_rootfs_archive:-:} && verify_rootfs_archive
+	${extract_rootfs_archive:-:} && extract_rootfs_archive
 	post_install_actions # External function
 fi
 
 # Create launchers
 if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
-	${create_rootfs_launcher:-:} &&
-		create_rootfs_launcher
-	${create_vnc_launcher:-:} &&
-		create_vnc_launcher
+	create_rootfs_launcher
+	create_vnc_launcher
 fi
 
 # Post install configurations
 if ${ACTION_CONFIGURE}; then
 	pre_config_actions # External function
-	${make_configurations:-:} &&
-		make_configurations
+	${make_configurations:-:} && make_configurations
 	post_config_actions # External function
-	${set_user_shell:-:} &&
-		set_user_shell
-	${set_zone_info:-:} &&
-		set_zone_info
+	set_user_shell
+	set_zone_info
 fi
 
 # Clean up files
 if ${ACTION_INSTALL}; then
-	${prompt_cleanup:-:} &&
-		prompt_cleanup
+	prompt_cleanup
 fi
 
 # Print message for successful completion
 if ${ACTION_INSTALL} || ${ACTION_CONFIGURE}; then
 	pre_complete_actions # External function
-	${complete_msg:-:} &&
-		complete_msg
+	show_complete_msg
 	post_complete_actions # External function
 fi
