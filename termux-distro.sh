@@ -983,7 +983,7 @@ set_user_shell() {
 			if [ -z "${default_shell}" ]; then
 				return
 			fi
-			ask -n -- -t "Should I change the login shell from '${Y}${default_shell}${C}'?"
+			ask -y -- -t "Should I change the login shell from '${Y}${default_shell}${C}'?"
 		fi
 	}; then
 		local shell shells
@@ -1015,7 +1015,7 @@ set_zone_info() {
 			if [ -z "${default_localtime}" ]; then
 				default_localtime="unknown"
 			fi
-			ask -n -- -t "Should I change the local time from '${Y}${default_localtime}${C}'?"
+			ask -y -- -t "Should I change the local time from '${Y}${default_localtime}${C}'?"
 		fi
 	}; then
 		msg -n "Input local time"
@@ -1093,7 +1093,7 @@ uninstall_rootfs() {
 			msg -aq "Uninstallation cancelled."
 		fi
 	else
-		msg -aq "No rootfs found in '${ROOTFS_DIRECTORY}'."
+		msg -aq "No rootfs found in '${Y}${ROOTFS_DIRECTORY}${R}'."
 	fi
 }
 
