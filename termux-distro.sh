@@ -172,7 +172,7 @@ download_rootfs_archive() {
 		else
 			msg -t "Lemme download a new rootfs archive."
 		fi
-		msg "The archive size is '${Y}$({ curl --disable --fail --silent --head "${BASE_URL}/${ARCHIVE_NAME}" || echo -n "Content-Length 0"; } | tr -d '\r' | awk '/[Cc]ontent-[Ll]ength/{print $2}' | numfmt --to=iec --suffix=B)${C}', this might take a while."
+		msg "The archive size is '${Y}$(curl --disable --fail --location --silent --head "${BASE_URL}/${ARCHIVE_NAME}" | awk 'tolower($1)=="content-length:" {cl=$2} END {print cl+0}' | numfmt --to=iec --suffix=B)${C}', this might take a while."
 		if curl --disable --fail --location --progress-bar --retry-connrefused --retry 0 --retry-delay 3 --continue-at - --output "${tmp_dload}" "${BASE_URL}/${ARCHIVE_NAME}"; then
 			mv "${tmp_dload}" "${ARCHIVE_NAME}" >>"${LOG_FILE}" 2>&1
 			msg -s "Great, the rootfs download is complete!"
