@@ -89,7 +89,7 @@ package_check() {
 	fi
 	msg -t "Lemme also check if all the required packages are installed."
 	local package
-	for package in awk basename curl du numfmt proot pulseaudio readlink realpath sed tar tput unzip xz; do
+	for package in awk basename curl du numfmt proot pulseaudio readlink realpath sed tar ncurses-utils unzip xz; do
 		if ! [ -x "$(command -v "${package}")" ]; then
 			msg "Oops, looks like '${Y}${package}${C}' is missing! Let me install it now."
 			if pkg install -y "${package}" < <(echo -e "y\ny\ny\ny\ny") >>"${LOG_FILE}" 2>&1; then
