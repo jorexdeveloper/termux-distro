@@ -731,6 +731,11 @@ create_rootfs_launcher() {
 		    proot_args+=("--bind=${ROOTFS_DIRECTORY}/proc/.sysctl_entry_cap_last_cap:/proc/sys/kernel/cap_last_cap")
 		fi
 
+		# Fake battery stats
+		if ! [ -r /sys/class/power_supply/BAT0/uevent ]; then
+		    proot_args+=("--bind=${ROOTFS_DIRECTORY}/sys/class/power_supply/BAT0/.uevent:/sys/class/power_supply/BAT0/uevent")
+		fi
+
 		# Bind /tmp to /dev/shm
 		proot_args+=("--bind=${ROOTFS_DIRECTORY}/tmp:/dev/shm")
 		if ! [ -d "${ROOTFS_DIRECTORY}/tmp" ]; then
@@ -1142,7 +1147,7 @@ print_usage() {
 sys_setup() {
 	local status=""
 	local dir
-	for dir in proc sys sys/.empty; do
+	for dir in proc sys sys/.empty sys/class/power_supply/BAT0; do
 		if ! [ -e "${ROOTFS_DIRECTORY}/${dir}" ]; then
 			mkdir -p "${ROOTFS_DIRECTORY}/${dir}"
 		fi
@@ -1379,6 +1384,31 @@ sys_setup() {
 	if ! [ -f "${ROOTFS_DIRECTORY}/proc/.sysctl_inotify_max_user_watches" ]; then
 		cat <<-EOF >"${ROOTFS_DIRECTORY}/proc/.sysctl_inotify_max_user_watches"
 			4096
+		EOF
+	fi
+	status+="-${?}"
+	if ! [ -f "${ROOTFS_DIRECTORY}/sys/class/power_supply/BAT0/.uevent" ]; then
+		cat <<-EOF >"${ROOTFS_DIRECTORY}/sys/class/power_supply/BAT0/.uevent"
+			POWER_SUPPLY_NAME=BAT0
+			POWER_SUPPLY_TYPE=Battery
+			POWER_SUPPLY_PRESENT=1
+			POWER_SUPPLY_STATUS=Discharging
+			POWER_SUPPLY_HEALTH=Good
+			POWER_SUPPLY_TECHNOLOGY=Li-ion
+			POWER_SUPPLY_CAPACITY=75
+			POWER_SUPPLY_CAPACITY_LEVEL=Normal
+			POWER_SUPPLY_VOLTAGE_NOW=11500000
+			POWER_SUPPLY_CURRENT_NOW=900000
+			POWER_SUPPLY_CHARGE_NOW=3750000
+			POWER_SUPPLY_CHARGE_FULL=5000000
+			POWER_SUPPLY_CHARGE_FULL_DESIGN=5200000
+			POWER_SUPPLY_CYCLE_COUNT=85
+			POWER_SUPPLY_TEMP=320
+			POWER_SUPPLY_MODEL_NAME=BAT-Generic
+			POWER_SUPPLY_MANUFACTURER=OpenPower
+			POWER_SUPPLY_SERIAL_NUMBER=1234567890
+			POWER_SUPPLY_TIME_TO_EMPTY_NOW=5400
+			POWER_SUPPLY_TIME_TO_FULL_NOW=1800
 		EOF
 	fi
 	status+="-${?}"
